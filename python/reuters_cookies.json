@@ -1,0 +1,149 @@
+[
+  {
+    "domain": "www.reutersconnect.com",
+    "expiry": 1747803347,
+    "httpOnly": false,
+    "name": "_dd_s",
+    "path": "/",
+    "sameSite": "Strict",
+    "secure": false,
+    "value": "rum=2&id=b6369d1f-54c4-4680-9ee0-5899ffcd233b&created=1747802396871&expire=1747803341188"
+  },
+  {
+    "domain": ".reutersconnect.com",
+    "expiry": 1782362441,
+    "httpOnly": false,
+    "name": "amplitude_id_8d2cf860dab42795655013b192199decreutersconnect.com",
+    "path": "/",
+    "sameSite": "Lax",
+    "secure": false,
+    "value": "eyJkZXZpY2VJZCI6Ijc4NTlmNTM0LTk1NGUtNDQzYy04MzJmLTUwNjg0YTAwMGY5MlIiLCJ1c2VySWQiOiIyNzU5ODUiLCJvcHRPdXQiOmZhbHNlLCJzZXNzaW9uSWQiOjE3NDc4MDIzOTc2NDUsImxhc3RFdmVudFRpbWUiOjE3NDc4MDI0NDExODcsImV2ZW50SWQiOjcsImlkZW50aWZ5SWQiOjUsInNlcXVlbmNlTnVtYmVyIjoxMn0="
+  },
+  {
+    "domain": ".reutersconnect.com",
+    "expiry": 1782362441,
+    "httpOnly": false,
+    "name": "_ga_HT8LLME2YG",
+    "path": "/",
+    "sameSite": "Lax",
+    "secure": false,
+    "value": "GS2.1.s1747802397$o1$g1$t1747802441$j0$l0$h0"
+  },
+  {
+    "domain": ".reutersconnect.com",
+    "expiry": 1747888840,
+    "httpOnly": false,
+    "name": "mexlogin",
+    "path": "/",
+    "sameSite": "Lax",
+    "secure": false,
+    "value": "bxwC/m5NL3oGihQDIEBHyRClVYAUsxhMImvrSv5CoSE="
+  },
+  {
+    "domain": ".reutersconnect.com",
+    "expiry": 1779338440,
+    "httpOnly": false,
+    "name": "ajs_group_id",
+    "path": "/",
+    "sameSite": "Lax",
+    "secure": false,
+    "value": "17764"
+  },
+  {
+    "domain": ".reutersconnect.com",
+    "expiry": 1779338441,
+    "httpOnly": false,
+    "name": "ajs_user_id",
+    "path": "/",
+    "sameSite": "Lax",
+    "secure": false,
+    "value": "275985"
+  },
+  {
+    "domain": ".reutersconnect.com",
+    "expiry": 1779338415,
+    "httpOnly": false,
+    "name": "datadome",
+    "path": "/",
+    "sameSite": "Lax",
+    "secure": true,
+    "value": "9fFpyexNKM601mlZrpg3JmjzLdToZwtAWy_eAVCVbqg9hatuhamrQNEtGuRv9Oqp2hArh1ecDgjr3XgL5H5Rssev6YO27UqrbtYiafxqhECG_10M8WKUMfe8rFqveuk1"
+  },
+  {
+    "domain": ".reutersconnect.com",
+    "expiry": 1750394437,
+    "httpOnly": false,
+    "name": "mexcustomerid",
+    "path": "/",
+    "sameSite": "Lax",
+    "secure": false,
+    "value": "bxwC/m5NL3pKLINpMKaThqWGtBYqUZhIImvrSv5CoSE="
+  },
+  {
+    "domain": "www.reutersconnect.com",
+    "httpOnly": false,
+    "name": "ELOQUAOPTOUT",
+    "path": "/",
+    "sameSite": "Lax",
+    "secure": false,
+    "value": "1"
+  },
+  {
+    "domain": ".reutersconnect.com",
+    "expiry": 1779338439,
+    "httpOnly": false,
+    "name": "OptanonAlertBoxClosed",
+    "path": "/",
+    "sameSite": "Lax",
+    "secure": false,
+    "value": "2025-05-21T04:40:39.816Z"
+  },
+  {
+    "domain": "www.reutersconnect.com",
+    "httpOnly": true,
+    "name": "rcp-sid",
+    "path": "/",
+    "sameSite": "Strict",
+    "secure": true,
+    "value": "07ed1ab2-81b6-4354-b270-71753e298309"
+  },
+  {
+    "domain": ".reutersconnect.com",
+    "httpOnly": false,
+    "name": "amplitude_idundefinedreutersconnect.com",
+    "path": "/",
+    "sameSite": "Lax",
+    "secure": false,
+    "value": "eyJvcHRPdXQiOmZhbHNlLCJzZXNzaW9uSWQiOm51bGwsImxhc3RFdmVudFRpbWUiOm51bGwsImV2ZW50SWQiOjAsImlkZW50aWZ5SWQiOjAsInNlcXVlbmNlTnVtYmVyIjowfQ=="
+  },
+  {
+    "domain": ".reutersconnect.com",
+    "expiry": 1782362440,
+    "httpOnly": false,
+    "name": "_ga",
+    "path": "/",
+    "sameSite": "Lax",
+    "secure": false,
+    "value": "GA1.1.1218917495.1747802398"
+  },
+  {
+    "domain": ".reutersconnect.com",
+    "expiry": 1779338439,
+    "httpOnly": false,
+    "name": "OptanonConsent",
+    "path": "/",
+    "sameSite": "Lax",
+    "secure": false,
+    "value": "isGpcEnabled=0&datestamp=Wed+May+21+2025+12%3A40%3A39+GMT%2B0800+(%E5%8F%B0%E5%8C%97%E6%A8%99%E6%BA%96%E6%99%82%E9%96%93)&version=202502.1.0&browserGpcFlag=0&isIABGlobal=false&hosts=&landingPath=NotLandingPage&groups=1%3A1%2C3%3A1%2CSPD_BG%3A1%2C4%3A1%2C2%3A1&AwaitingReconsent=false"
+  },
+  {
+    "domain": ".reutersconnect.com",
+    "expiry": 1779338441,
+    "httpOnly": false,
+    "name": "ajs_anonymous_id",
+    "path": "/",
+    "sameSite": "Lax",
+    "secure": false,
+    "value": "87c1f5a9-c600-4067-8a1e-f07831aacb5e"
+  }
+]
