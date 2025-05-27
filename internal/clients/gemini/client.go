@@ -3,8 +3,6 @@ package gemini
 import (
 	"AiHackathon-admin/internal/models"
 	"context"
-
-	// "database/sql" // JsonNullString 來自 models/types.go
 	"encoding/json"
 	"fmt"
 	"log"
@@ -33,7 +31,7 @@ func NewClient(apiKey string) (*Client, error) {
 	modelName := "gemini-1.5-flash-latest"
 	genaiModel := genaiClient.GenerativeModel(modelName)
 	// genaiModel.GenerationConfig = &genai.GenerationConfig{
-	// ResponseMIMEType: "application/json",
+	// 	ResponseMIMEType: "application/json",
 	// }
 	log.Printf("資訊：Gemini 客戶端初始化成功，使用模型: %s\n", modelName)
 	return &Client{genaiModel: genaiModel}, nil
@@ -85,9 +83,10 @@ func (c *Client) AnalyzeVideo(ctx context.Context, videoPath string, prompt stri
 	if strings.TrimSpace(fullResponseText) == "" {
 		return nil, fmt.Errorf("Gemini API 回傳的文字內容為空")
 	}
-	log.Printf("資訊：[Gemini Client] 收到來自 API 的完整文字回應 (前500字元): %s...\n", firstNChars(fullResponseText, 500))
+	// 為了調試，我們先記錄完整的原始回應，再進行清理
+	log.Printf("資訊：[Gemini Client] 收到來自 API 的完整原始文字回應:\n%s\n", fullResponseText)
 
-	var analysis models.AnalysisResult // 這裡的 AnalysisResult 欄位現在包含 *JsonNullString
+	var analysis models.AnalysisResult
 	cleanedJSONString := strings.TrimSpace(fullResponseText)
 	if strings.HasPrefix(cleanedJSONString, "```json") {
 		cleanedJSONString = strings.TrimPrefix(cleanedJSONString, "```json")
@@ -96,15 +95,13 @@ func (c *Client) AnalyzeVideo(ctx context.Context, videoPath string, prompt stri
 		cleanedJSONString = strings.TrimSuffix(cleanedJSONString, "```")
 	}
 	cleanedJSONString = strings.TrimSpace(cleanedJSONString)
+	log.Printf("資訊：[Gemini Client] 清理後的 JSON 字串準備解析:\n%s\n", cleanedJSONString)
 
 	if err := json.Unmarshal([]byte(cleanedJSONString), &analysis); err != nil {
-		log.Printf("錯誤：[Gemini Client] 無法將 Gemini API 回應解析為 JSON: %v\n原始回應片段: %s\n", err, firstNChars(cleanedJSONString, 200))
-		return nil, fmt.Errorf("無法將 Gemini API 回應解析為 JSON: %w。原始回應片段: %s", err, firstNChars(cleanedJSONString, 200))
+		// *** 修改日誌記錄，輸出完整的 cleanedJSONString ***
+		log.Printf("錯誤：[Gemini Client] 無法將 Gemini API 回應解析為 JSON: %v\n完整的 Cleaned JSON 字串:\n%s\n", err, cleanedJSONString)
+		return nil, fmt.Errorf("無法將 Gemini API 回應解析為 JSON: %w。請檢查日誌中的完整 JSON 字串。", err)
 	}
-
-	// JsonNullString 的 UnmarshalJSON 方法會處理 Valid 欄位。
-	// 如果 JSON 中沒有對應的鍵，或者值是 null，則 *JsonNullString 欄位會是 nil。
-	// 如果 JSON 中有值（例如 ""），則會建立 JsonNullString 實例並調用其 UnmarshalJSON。
 
 	log.Printf("資訊：[Gemini Client] 影片 '%s' JSON 回應解析成功。\n", videoPath)
 	return &analysis, nil
