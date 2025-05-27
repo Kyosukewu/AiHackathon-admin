@@ -2,3 +2,5 @@
 /venv
 /Download
 /.env
+/config
+main

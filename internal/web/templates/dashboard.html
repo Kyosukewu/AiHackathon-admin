@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>影片分析儀表板</title>
+    <style>
+        /* ... (CSS 樣式保持不變) ... */
+        body { font-family: sans-serif; margin: 20px; background-color: #f4f4f4; color: #333; }
+        h1 { color: #333; border-bottom: 2px solid #007bff; padding-bottom: 10px; }
+        .controls { margin-bottom: 20px; }
+        .controls button { background-color: #007bff; color: white; border: none; padding: 10px 15px; text-align: center; text-decoration: none; display: inline-block; font-size: 16px; border-radius: 5px; cursor: pointer; transition: background-color 0.3s ease; }
+        .controls button:hover { background-color: #0056b3; }
+        .controls button:disabled { background-color: #cccccc; cursor: not-allowed; }
+        #statusMessage { margin-top: 10px; padding: 10px; border-radius: 3px; }
+        .status-success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb;}
+        .status-error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb;}
+        .status-info { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb;}
+        .video-item { background-color: #fff; border: 1px solid #ddd; border-radius: 5px; margin-bottom: 20px; padding: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .video-item h2 { margin-top: 0; color: #007bff; }
+        .video-item h3 { margin-top: 15px; margin-bottom: 5px; color: #555; border-bottom: 1px solid #eee; padding-bottom: 5px;}
+        .video-item p, .video-item ul { margin-top: 5px; line-height: 1.6; }
+        .video-item ul { padding-left: 20px; list-style-type: disc; }
+        .video-item pre { background-color: #eee; padding: 10px; border-radius: 3px; white-space: pre-wrap; word-wrap: break-word; font-size: 0.9em; }
+        .no-data { color: #777; font-style: italic; }
+        .prompt-version-info { font-size: 0.8em; color: #666; margin-top: 5px; }
+    </style>
+</head>
+<body>
+    <h1>影片分析儀表板</h1>
+    <div class="controls"> <button id="triggerAnalysisBtn">手動觸發影片分析</button> <div id="statusMessage"></div> </div>
+
+    {{if .Videos}}
+        {{range .Videos}}
+        <div class="video-item">
+            <h2>影片: {{.Title | html}} (ID: {{.VideoID}})</h2>
+            <p><strong>來源:</strong> {{.SourceName | html}} (來源ID: {{.SourceID | html}})</p>
+            <p><strong>NAS 路徑:</strong> {{.NASPath | html}}</p>
+            <p><strong>分析狀態:</strong> {{.AnalysisStatus}}</p>
+            {{if .AnalysisResult}}
+                {{if .AnalysisResult.PromptVersion}}
+                <p class="prompt-version-info"><strong>Prompt 版本:</strong> {{.AnalysisResult.PromptVersion | html}}</p>
+                {{end}}
+
+                <h3>逐字稿:</h3>
+                <pre>{{if and .AnalysisResult.Transcript .AnalysisResult.Transcript.Valid .AnalysisResult.Transcript.String}}{{.AnalysisResult.Transcript.String | html}}{{else}}<span class="no-data">無逐字稿</span>{{end}}</pre>
+
+                <h3>翻譯:</h3>
+                <pre>{{if and .AnalysisResult.Translation .AnalysisResult.Translation.Valid .AnalysisResult.Translation.String}}{{.AnalysisResult.Translation.String | html}}{{else}}<span class="no-data">無翻譯</span>{{end}}</pre>
+
+                <h3>列點摘要:</h3>
+                <pre>{{if and .AnalysisResult.Summary .AnalysisResult.Summary.Valid .AnalysisResult.Summary.String}}{{.AnalysisResult.Summary.String | html}}{{else}}<span class="no-data">無摘要</span>{{end}}</pre>
+
+                <h3>畫面內容描述:</h3>
+                <pre>{{if and .AnalysisResult.VisualDescription .AnalysisResult.VisualDescription.Valid .AnalysisResult.VisualDescription.String}}{{.AnalysisResult.VisualDescription.String | html}}{{else}}<span class="no-data">無畫面描述</span>{{end}}</pre>
+
+                <h3>辨識段落主題:</h3>
+                {{if .AnalysisResult.Topics}} <ul> {{range .AnalysisResult.Topics}} <li>{{. | html}}</li> {{end}} </ul> {{else}} <p class="no-data">無主題</p> {{end}}
+
+                <h3>關鍵詞分類:</h3>
+                {{if .AnalysisResult.Keywords}} <ul> {{range .AnalysisResult.Keywords}} <li><strong>{{.Keyword | html}}</strong>: {{.Category | html}}</li> {{end}} </ul> {{else}} <p class="no-data">無關鍵詞</p> {{end}}
+
+                {{if and .AnalysisResult.ErrorMessage .AnalysisResult.ErrorMessage.Valid .AnalysisResult.ErrorMessage.String}}
+                <h3>分析錯誤訊息:</h3>
+                <pre style="color: red;">{{.AnalysisResult.ErrorMessage.String | html}}</pre>
+                {{end}}
+            {{else}}
+                <p class="no-data">此影片尚無分析結果。</p>
+            {{end}}
+        </div>
+        {{end}}
+    {{else}}
+        <p class="no-data">目前沒有影片數據可顯示。</p>
+    {{end}}
+    <script> /* JavaScript 保持不變 */ document.getElementById('triggerAnalysisBtn').addEventListener('click', function() { const btn = this; const statusMessageDiv = document.getElementById('statusMessage'); btn.disabled = true; statusMessageDiv.textContent = '正在觸發分析，請稍候...'; statusMessageDiv.className = 'status-info'; fetch('/manual-analyze', { method: 'POST', headers: {'Content-Type': 'application/json'}, }).then(response => { if (!response.ok) { return response.json().then(errData => { throw new Error(errData.error || `HTTP 錯誤！狀態碼: ${response.status}`); }).catch(() => { throw new Error(`HTTP 錯誤！狀態碼: ${response.status}`); }); } return response.json(); }).then(data => { statusMessageDiv.textContent = data.message || '分析已成功觸發！請稍後刷新頁面查看結果。'; statusMessageDiv.className = 'status-success'; }).catch(error => { console.error('觸發分析時發生錯誤:', error); statusMessageDiv.textContent = `錯誤: ${error.message}`; statusMessageDiv.className = 'status-error'; }).finally(() => { setTimeout(() => { btn.disabled = false; }, 30000); }); }); </script>
+</body>
+</html>
