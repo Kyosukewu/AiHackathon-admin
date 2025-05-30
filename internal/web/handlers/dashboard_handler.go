@@ -43,10 +43,12 @@ type VideoDisplayData struct {
 	DurationSecs             sql.NullInt64
 	FormattedDurationMinutes int64
 	FormattedDurationSeconds int64
-	ShotlistContent          models.JsonNullString // 來自 models/types.go
+	ShotlistContent          models.JsonNullString
 	ViewLink                 sql.NullString
-	PrimaryLocation          string   // 來自 Video.Location
-	PrimarySubjects          []string // 來自 Video.Subjects (解析後)
+	PrimaryLocation          string
+	PrimarySubjects          []string
+	FlagEmoji                string
+	VideoURL                 string
 }
 
 // KeywordDisplay 用於在範本中顯示關鍵詞及其分類
@@ -76,8 +78,8 @@ type DisplayableAnalysisResult struct {
 	BulletedSummary         *models.JsonNullString
 	VisualDescription       *models.JsonNullString
 	MaterialType            *models.JsonNullString
-	ConsolidatedCategories  []string // 合併後的分類/主題列表
-	VideoMentionedLocations []string // 影片中提及的其他地點 (已排除 PrimaryLocation)
+	ConsolidatedCategories  []string
+	VideoMentionedLocations []string // *** 欄位已正確定義 ***
 	Keywords                []KeywordDisplay
 	Bites                   []BiteDisplay
 	ImportanceScore         *ImportanceScoreDisplay
@@ -106,6 +108,42 @@ func NewDashboardHandler(db DBStore, templateBasePath string) (*DashboardHandler
 	return &DashboardHandler{db: db, tpl: tpl, basePath: templateBasePath}, nil
 }
 
+// getFlagForLocationGo (保持不變)
+func getFlagForLocationGo(locationString string) string {
+	if locationString == "" {
+		return ""
+	}
+	locationLower := strings.ToLower(locationString)
+	if strings.Contains(locationLower, "美國") || strings.Contains(locationLower, "u.s.") || strings.Contains(locationLower, "usa") || strings.Contains(locationLower, "華盛頓") {
+		return "🇺🇸"
+	}
+	if strings.Contains(locationLower, "日本") || strings.Contains(locationLower, "japan") || strings.Contains(locationLower, "東京") {
+		return "🇯🇵"
+	}
+	if strings.Contains(locationLower, "中國") || strings.Contains(locationLower, "china") || strings.Contains(locationLower, "北京") || strings.Contains(locationLower, "上海") || strings.Contains(locationLower, "山東") {
+		return "🇨🇳"
+	}
+	if strings.Contains(locationLower, "台灣") || strings.Contains(locationLower, "taiwan") || strings.Contains(locationLower, "臺北") || strings.Contains(locationLower, "台北") {
+		return "🇹🇼"
+	}
+	if strings.Contains(locationLower, "南非") || strings.Contains(locationLower, "south africa") || strings.Contains(locationLower, "約翰尼斯堡") {
+		return "🇿🇦"
+	}
+	if strings.Contains(locationLower, "法國") || strings.Contains(locationLower, "france") || strings.Contains(locationLower, "巴黎") {
+		return "🇫🇷"
+	}
+	if strings.Contains(locationLower, "英國") || strings.Contains(locationLower, "u.k.") || strings.Contains(locationLower, "britain") {
+		return "🇬🇧"
+	}
+	if strings.Contains(locationLower, "以色列") || strings.Contains(locationLower, "israel") {
+		return "🇮🇱"
+	}
+	if strings.Contains(locationLower, "加薩") || strings.Contains(locationLower, "gaza") {
+		return "🇵🇸"
+	}
+	return "🏳️"
+}
+
 // ServeHTTP 實現 http.Handler 介面
 func (h *DashboardHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	log.Printf("資訊：收到 %s %s 請求\n", r.Method, r.URL.Path)
@@ -124,19 +162,20 @@ func (h *DashboardHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	for _, v := range videos {
 		displayItem := VideoDisplayData{
-			VideoID:        v.ID,
-			SourceName:     v.SourceName,
-			SourceID:       v.SourceID,
-			NASPath:        v.NASPath,
-			Title:          v.Title.String,
-			AnalysisStatus: v.AnalysisStatus,
-			AnalysisResult: nil,
-
+			VideoID:         v.ID,
+			SourceName:      v.SourceName,
+			SourceID:        v.SourceID,
+			NASPath:         v.NASPath,
+			Title:           v.Title.String,
+			AnalysisStatus:  v.AnalysisStatus,
+			AnalysisResult:  nil,
 			PublishedAt:     v.PublishedAt,
 			DurationSecs:    v.DurationSecs,
 			ShotlistContent: v.ShotlistContent,
 			ViewLink:        v.ViewLink,
 			PrimaryLocation: v.Location.String,
+			FlagEmoji:       getFlagForLocationGo(v.Location.String),
+			VideoURL:        fmt.Sprintf("/media/%s", v.NASPath),
 		}
 		if v.DurationSecs.Valid {
 			displayItem.FormattedDurationMinutes = v.DurationSecs.Int64 / 60
@@ -198,11 +237,21 @@ func (h *DashboardHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			var videoOnlyMentionedLocations []string
 			primaryLocLower := strings.ToLower(displayItem.PrimaryLocation)
 			for _, loc := range geminiMentionedLocations {
-				if strings.ToLower(strings.TrimSpace(loc)) != primaryLocLower {
-					videoOnlyMentionedLocations = append(videoOnlyMentionedLocations, loc)
+				trimmedLoc := strings.TrimSpace(loc)
+				if trimmedLoc != "" && strings.ToLower(trimmedLoc) != primaryLocLower {
+					found := false
+					for _, existingLoc := range videoOnlyMentionedLocations {
+						if existingLoc == trimmedLoc {
+							found = true
+							break
+						}
+					}
+					if !found {
+						videoOnlyMentionedLocations = append(videoOnlyMentionedLocations, trimmedLoc)
+					}
 				}
 			}
-			displayableAR.VideoMentionedLocations = videoOnlyMentionedLocations // 正確賦值
+			displayableAR.VideoMentionedLocations = videoOnlyMentionedLocations // *** 賦值到正確的欄位 ***
 
 			if len(ar.Keywords) > 0 && string(ar.Keywords) != "null" {
 				var keywordsSlice []KeywordDisplay
@@ -248,7 +297,7 @@ func (h *DashboardHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// prettyPrintJSON 輔助函式，將 json.RawMessage 美化輸出或回傳原始字串
+// prettyPrintJSON (保持不變)
 func prettyPrintJSON(raw json.RawMessage) string {
 	if len(raw) == 0 || string(raw) == "null" {
 		return ""
@@ -262,3 +311,14 @@ func prettyPrintJSON(raw json.RawMessage) string {
 	}
 	return string(raw)
 }
+
+// TriggerTextAnalysisHandler 和 TriggerVideoAnalysisHandler 相關程式碼 (已在各自檔案中，此處不重複)
+// type TextAnalysisPipelineRunner interface { ExecuteTextAnalysisPipeline() error }
+// type TriggerTextAnalysisHandler struct { /* ... */ }
+// func NewTriggerTextAnalysisHandler(as TextAnalysisPipelineRunner) *TriggerTextAnalysisHandler { /* ... */ }
+// func (h *TriggerTextAnalysisHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) { /* ... */ }
+
+// type VideoContentPipelineRunner interface { ExecuteVideoContentPipeline() error }
+// type TriggerVideoAnalysisHandler struct { /* ... */ }
+// func NewTriggerVideoAnalysisHandler(as VideoContentPipelineRunner) *TriggerVideoAnalysisHandler { /* ... */ }
+// func (h *TriggerVideoAnalysisHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) { /* ... */ }
