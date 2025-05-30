@@ -360,7 +360,7 @@ if __name__ == "__main__":
                     download_video_files_flag = user_choice != 'n' 
                     break
                 else: print("   無效輸入，請輸入 'y' 或 'n'。")
-            limit = 5 
+            limit = 2 
             try:
                 if go_to_search_page(driver_instance): 
                     process_videos_loop(driver_instance, limit, download_video_files_flag) 
