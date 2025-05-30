@@ -1,23 +1,24 @@
 package models
 
 import (
+	// "AiHackathon-admin/internal/models/types" // 如果 types.go 和本檔案在同一個 package models，則不需此行
 	"database/sql"
 	"encoding/json"
 	"time"
 )
 
-// AnalysisStatus 定義分析狀態
+// AnalysisStatus (保持不變)
 type AnalysisStatus string
 
 const (
-	StatusPending             AnalysisStatus = "pending"               // 初始狀態，或等待文本元數據分析
-	StatusMetadataExtracting  AnalysisStatus = "metadata_extracting"   // 新增：正在提取文本元數據
-	StatusMetadataExtracted   AnalysisStatus = "metadata_extracted"    // 新增：文本元數據已提取，等待影片內容分析
-	StatusProcessing          AnalysisStatus = "processing"            // 正在進行影片內容分析
-	StatusCompleted           AnalysisStatus = "completed"             // 所有分析已完成
-	StatusFailed              AnalysisStatus = "failed"                // 任一階段分析失敗
-	StatusTxtAnalysisFailed   AnalysisStatus = "txt_analysis_failed"   // 新增：文本分析失敗
-	StatusVideoAnalysisFailed AnalysisStatus = "video_analysis_failed" // 新增：影片內容分析失敗 (取代通用的 failed)
+	StatusPending             AnalysisStatus = "pending"
+	StatusMetadataExtracting  AnalysisStatus = "metadata_extracting"
+	StatusMetadataExtracted   AnalysisStatus = "metadata_extracted"
+	StatusTxtAnalysisFailed   AnalysisStatus = "txt_analysis_failed"
+	StatusProcessing          AnalysisStatus = "processing"
+	StatusVideoAnalysisFailed AnalysisStatus = "video_analysis_failed"
+	StatusCompleted           AnalysisStatus = "completed"
+	StatusFailed              AnalysisStatus = "failed" // 通用失敗，可考慮是否保留
 )
 
 // VideoFileInfo (保持不變)
@@ -31,11 +32,11 @@ type VideoFileInfo struct {
 	ModTime           time.Time
 }
 
-// ParsedTxtData (保持不變)
+// ParsedTxtData 用於存放從 Gemini 分析 .txt 檔案後回傳的 JSON 數據
 type ParsedTxtData struct {
 	Title           string          `json:"title"`
 	CreationDateStr string          `json:"creation_date"`
-	DurationSeconds json.RawMessage `json:"duration_seconds"` // <--- 修改為 json.RawMessage
+	DurationSeconds json.RawMessage `json:"duration_seconds"` // <--- 已改回 json.RawMessage
 	Subjects        json.RawMessage `json:"subjects"`
 	Location        string          `json:"location"`
 	ShotlistContent string          `json:"shotlist_content"`
@@ -51,7 +52,7 @@ type Video struct {
 	FetchedAt       time.Time       `json:"fetched_at"`
 	PublishedAt     sql.NullTime    `json:"published_at"`
 	DurationSecs    sql.NullInt64   `json:"duration_secs"`
-	ShotlistContent JsonNullString  `json:"shotlist_content"`
+	ShotlistContent JsonNullString  `json:"shotlist_content"` // 來自 types.go (同 package)
 	ViewLink        sql.NullString  `json:"view_link"`
 	Subjects        json.RawMessage `json:"subjects"`
 	Location        sql.NullString  `json:"location"`

@@ -7,6 +7,3 @@ type NASStorage interface {
 	ReadVideo(filePath string) ([]byte, error)
 	// DeleteVideo(filePathInDB string) error // 如果需要
 }
-
-// 您也可以將 DBStore 介面從 handlers 移到這裡，如果它主要由 services 層使用
-// type DBStore interface { ... }

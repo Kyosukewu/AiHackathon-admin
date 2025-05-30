@@ -311,7 +311,7 @@
         <h1>影片分析儀表板 (卡片視圖)</h1>
 
         <div class="controls">
-            <button id="triggerTextAnalysisBtn">手動觸發文本元數據分析</button>
+            <button id="triggerTextAnalysisBtn">手動觸發文本原始數據分析</button>
             <button id="triggerVideoAnalysisBtn" class="secondary">手動觸發影片內容分析</button>
             <div id="statusMessageContainer"></div>
         </div>
@@ -449,7 +449,7 @@
         const statusMessageContainer = document.getElementById('statusMessageContainer');
         function displayStatusMessage(message, type) { const messageDiv = document.createElement('div'); messageDiv.className = 'status-message status-' + type; messageDiv.textContent = message; statusMessageContainer.appendChild(messageDiv); setTimeout(() => { messageDiv.remove(); }, 7000); }
         function triggerAnalysis(buttonElement, endpoint, buttonText) { /* ... 與之前版本相同 ... */ console.log(`按鈕 '${buttonText}' 被點擊！`); const btn = buttonElement; btn.disabled = true; displayStatusMessage(`正在觸發 ${buttonText}，請稍候...`, 'info'); fetch(endpoint, { method: 'POST', headers: {'Content-Type': 'application/json'} }).then(response => { if (!response.ok) { return response.json().then(errData => { throw new Error(errData.error || `HTTP 錯誤！狀態碼: ${response.status}`); }).catch(() => { throw new Error(`HTTP 錯誤！狀態碼: ${response.status}`); }); } return response.json(); }).then(data => { displayStatusMessage(data.message || `${buttonText} 已成功觸發！`, 'success'); }).catch(error => { displayStatusMessage(`錯誤 (${buttonText}): ${error.message}`, 'error'); }).finally(() => { setTimeout(() => { btn.disabled = false; }, 10000); }); }
-        if (textAnalysisBtn) { textAnalysisBtn.addEventListener('click', function() { triggerAnalysis(this, '/manual-text-analyze', '文本元數據分析'); }); } else { console.error("錯誤：找不到 ID 為 'triggerTextAnalysisBtn' 的按鈕！"); }
+        if (textAnalysisBtn) { textAnalysisBtn.addEventListener('click', function() { triggerAnalysis(this, '/manual-text-analyze', '文本原始數據分析'); }); } else { console.error("錯誤：找不到 ID 為 'triggerTextAnalysisBtn' 的按鈕！"); }
         if (videoAnalysisBtn) { videoAnalysisBtn.addEventListener('click', function() { triggerAnalysis(this, '/manual-video-analyze', '影片內容分析'); }); } else { console.error("錯誤：找不到 ID 為 'triggerVideoAnalysisBtn' 的按鈕！"); }
         function toggleDetails(detailsId) { const detailsDiv = document.getElementById(detailsId); const cardHeader = detailsDiv ? detailsDiv.previousElementSibling : null; const indicator = cardHeader ? cardHeader.querySelector('.expand-indicator') : null; if (detailsDiv) { detailsDiv.classList.toggle('expanded'); if (indicator) { indicator.textContent = detailsDiv.classList.contains('expanded') ? '▲ 收合' : '► 展開'; } } }
     </script>

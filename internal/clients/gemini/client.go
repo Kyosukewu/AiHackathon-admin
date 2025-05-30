@@ -9,19 +9,19 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"unicode/utf8" // 新增：用於 UTF-8 驗證和清理
+	"unicode/utf8"
 
 	"github.com/google/generative-ai-go/genai"
 	"google.golang.org/api/option"
 )
 
-// Client 結構 (保持不變)
+// Client 結構用於與 Gemini API 互動
 type Client struct {
 	textAnalysisModel  *genai.GenerativeModel
 	videoAnalysisModel *genai.GenerativeModel
 }
 
-// NewClient (保持不變)
+// NewClient 建立一個 Gemini 客戶端實例
 func NewClient(apiKey string, textModelName string, videoModelName string) (*Client, error) {
 	if apiKey == "" {
 		return nil, fmt.Errorf("Gemini API Key 不得為空")
@@ -34,73 +34,106 @@ func NewClient(apiKey string, textModelName string, videoModelName string) (*Cli
 		videoModelName = "gemini-1.5-flash-latest"
 		log.Printf("警告：[Gemini Client] 未提供影片分析模型名稱，使用預設值: %s\n", videoModelName)
 	}
+
 	ctx := context.Background()
 	genaiSDKClient, err := genai.NewClient(ctx, option.WithAPIKey(apiKey))
 	if err != nil {
 		return nil, fmt.Errorf("無法建立 Gemini GenAI SDK 客戶端: %w", err)
 	}
+
 	txtModel := genaiSDKClient.GenerativeModel(textModelName)
 	var textGenConfig genai.GenerationConfig
 	textGenConfig.ResponseMIMEType = "application/json"
 	txtModel.GenerationConfig = textGenConfig
 	log.Printf("資訊：[Gemini Client] 文本分析模型 '%s' 初始化成功。\n", textModelName)
+
 	vidModel := genaiSDKClient.GenerativeModel(videoModelName)
 	var videoGenConfig genai.GenerationConfig
 	videoGenConfig.ResponseMIMEType = "application/json"
 	vidModel.GenerationConfig = videoGenConfig
 	log.Printf("資訊：[Gemini Client] 影片分析模型 '%s' 初始化成功。\n", videoModelName)
-	return &Client{textAnalysisModel: txtModel, videoAnalysisModel: vidModel}, nil
+
+	return &Client{
+		textAnalysisModel:  txtModel,
+		videoAnalysisModel: vidModel,
+	}, nil
 }
 
-// cleanAndValidateJSON 清理並驗證 JSON 字串
-func cleanAndValidateJSON(rawJSON string, taskType string) (string, error) {
-	cleaned := strings.TrimSpace(rawJSON)
+// cleanJSONString 清理從 LLM 收到的可能包含雜質的 JSON 字串
+func cleanJSONString(rawResponse string) string {
+	cleaned := strings.TrimSpace(rawResponse)
+	log.Printf("DEBUG: [CleanJSON] Initial raw (first 200): %s", firstNChars(cleaned, 200))
+
 	if strings.HasPrefix(cleaned, "```json") {
 		cleaned = strings.TrimPrefix(cleaned, "```json")
-	}
-	if strings.HasSuffix(cleaned, "```") {
-		cleaned = strings.TrimSuffix(cleaned, "```")
+		if strings.HasSuffix(cleaned, "```") {
+			cleaned = strings.TrimSuffix(cleaned, "```")
+		}
+	} else if strings.HasPrefix(cleaned, "```") {
+		cleaned = strings.TrimPrefix(cleaned, "```")
+		if strings.HasSuffix(cleaned, "```") {
+			cleaned = strings.TrimSuffix(cleaned, "```")
+		}
 	}
 	cleaned = strings.TrimSpace(cleaned)
+	log.Printf("DEBUG: [CleanJSON] After markdown removal (first 200): %s", firstNChars(cleaned, 200))
 
-	if !utf8.ValidString(cleaned) {
-		log.Printf("警告：[Gemini Client - %s] 回應包含無效的 UTF-8 字元，嘗試清理...", taskType)
-		cleaned = strings.ToValidUTF8(cleaned, "�") // 將無效字元替換為 � (U+FFFD)
+	var potentialJSON string
+	firstBrace := strings.Index(cleaned, "{")
+	lastBrace := strings.LastIndex(cleaned, "}")
+	firstBracket := strings.Index(cleaned, "[")
+	lastBracket := strings.LastIndex(cleaned, "]")
+	isObject := firstBrace != -1 && lastBrace != -1 && lastBrace > firstBrace
+	isArray := firstBracket != -1 && lastBracket != -1 && lastBracket > firstBracket
+
+	if isObject && (!isArray || (isArray && firstBrace < firstBracket)) {
+		potentialJSON = cleaned[firstBrace : lastBrace+1]
+		log.Printf("DEBUG: [CleanJSON] Extracted object (first 200): %s", firstNChars(potentialJSON, 200))
+	} else if isArray && (!isObject || (isObject && firstBracket < firstBrace)) {
+		potentialJSON = cleaned[firstBracket : lastBracket+1]
+		log.Printf("DEBUG: [CleanJSON] Extracted array (first 200): %s", firstNChars(potentialJSON, 200))
+	} else {
+		potentialJSON = cleaned
+		log.Printf("DEBUG: [CleanJSON] No clear braces/brackets, using (first 200): %s", firstNChars(potentialJSON, 200))
+	}
+	potentialJSON = strings.TrimSpace(potentialJSON)
+
+	if !utf8.ValidString(potentialJSON) {
+		log.Println("警告：[Gemini Client Clean] 回應包含無效的 UTF-8 字元，嘗試替換...")
+		potentialJSON = strings.ToValidUTF8(potentialJSON, "")
 	}
 
-	// 確保至少是基本的 JSON 結構 (以 { 或 [ 開頭，以 } 或 ] 結尾)
-	if !((strings.HasPrefix(cleaned, "{") && strings.HasSuffix(cleaned, "}")) ||
-		(strings.HasPrefix(cleaned, "[") && strings.HasSuffix(cleaned, "]"))) {
-		log.Printf("錯誤：[Gemini Client - %s] 清理後的回應不是以 { 或 [ 開頭並以 } 或 ] 結尾的有效 JSON 結構。內容:\n%s\n", taskType, cleaned)
-		return "", fmt.Errorf("清理後的回應不是有效的 JSON 結構 (缺少正確的括號)")
+	var sb strings.Builder
+	for _, r := range potentialJSON {
+		if (r >= 0 && r < 9) || (r > 10 && r < 13) || (r > 13 && r < 32) || r == 127 {
+			continue
+		}
+		sb.WriteRune(r)
 	}
-
-	// 嘗試驗證 JSON 結構是否有效 (僅檢查語法，不檢查 schema)
-	var js json.RawMessage
-	if err := json.Unmarshal([]byte(cleaned), &js); err != nil {
-		log.Printf("錯誤：[Gemini Client - %s] 清理後的回應無法通過初步 JSON 驗證: %v。內容:\n%s\n", taskType, err, cleaned)
-		return "", fmt.Errorf("清理後的回應不是有效的 JSON: %w", err)
-	}
-
-	return cleaned, nil
+	finalCleaned := sb.String()
+	finalCleaned = strings.TrimPrefix(finalCleaned, "\uFEFF")
+	log.Printf("DEBUG: [CleanJSON] Final cleaned string before validation (first 200): %s", firstNChars(finalCleaned, 200))
+	return finalCleaned
 }
 
 // AnalyzeText 向 Gemini API 發送純文本內容和提示以進行分析，期望回傳 JSON 字串
 func (c *Client) AnalyzeText(ctx context.Context, textContent string, prompt string) (string, error) {
-	log.Printf("資訊：[Gemini Client] 開始分析文本內容 (長度: %d 字元)\n", len(textContent))
-	log.Printf("資訊：[Gemini Client] 使用文本分析 Prompt (前100字元): %s...\n", firstNChars(prompt, 100))
+	log.Printf("資訊：[Gemini Client] AnalyzeText - 開始分析文本內容 (長度: %d 字元)\n", len(textContent))
+	log.Printf("資訊：[Gemini Client] AnalyzeText - 使用文本分析 Prompt (前100字元): %s...\n", firstNChars(prompt, 100))
 	if strings.TrimSpace(textContent) == "" {
 		return "", fmt.Errorf("要分析的文本內容不得為空")
 	}
 	if strings.TrimSpace(prompt) == "" {
 		return "", fmt.Errorf("文本分析的 Prompt 不得為空")
 	}
+
 	requestParts := []genai.Part{genai.Text(prompt), genai.Text(textContent)}
-	log.Println("資訊：[Gemini Client] 正在向 Gemini API 發送文本分析請求...")
+	log.Println("資訊：[Gemini Client] AnalyzeText - 正在向 Gemini API 發送請求...")
 	resp, err := c.textAnalysisModel.GenerateContent(ctx, requestParts...)
 	if err != nil {
 		return "", fmt.Errorf("Gemini API 文本分析 GenerateContent 失敗: %w", err)
 	}
+
 	if resp == nil || len(resp.Candidates) == 0 {
 		return "", fmt.Errorf("Gemini API 文本分析回應無效或為空 (nil response or no candidates)")
 	}
@@ -122,27 +155,30 @@ func (c *Client) AnalyzeText(ctx context.Context, textContent string, prompt str
 		if txt, ok := part.(genai.Text); ok {
 			responseTextBuilder.WriteString(string(txt))
 		} else {
-			log.Printf("警告：[Gemini Client] 文本分析收到非預期的 Part 類型: %T\n", part)
+			log.Printf("警告：[Gemini Client] AnalyzeText - 收到非預期的 Part 類型: %T\n", part)
 		}
 	}
 	rawJsonResponseString := responseTextBuilder.String()
 	if strings.TrimSpace(rawJsonResponseString) == "" {
-		return "", fmt.Errorf("Gemini API 文本分析回傳的 JSON 內容為空")
+		return "", fmt.Errorf("Gemini API 文本分析回傳的內容為空")
 	}
+	log.Printf("資訊：[Gemini Client] AnalyzeText - 收到 API 的原始文字回應 (長度: %d):\nRAW_TEXT_START\n%s\nRAW_TEXT_END\n", len(rawJsonResponseString), rawJsonResponseString)
 
-	cleanedJSON, err := cleanAndValidateJSON(rawJsonResponseString, "TextAnalysis")
-	if err != nil {
-		log.Printf("錯誤：[Gemini Client] 文本分析回應清理或驗證失敗: %v\n原始回應:\n%s\n", err, rawJsonResponseString)
-		return "", fmt.Errorf("文本分析回應清理或驗證失敗: %w", err)
+	cleanedJSONString := cleanJSONString(rawJsonResponseString)
+	log.Printf("資訊：[Gemini Client] AnalyzeText - 清理後的 JSON 字串 (長度: %d):\nCLEANED_TEXT_START\n%s\nCLEANED_TEXT_END\n", len(cleanedJSONString), cleanedJSONString)
+
+	if !json.Valid([]byte(cleanedJSONString)) {
+		log.Printf("錯誤：[Gemini Client] AnalyzeText - 清理後的字串仍然不是有效的 JSON。完整的 Cleaned JSON String:\n%s\n", cleanedJSONString)
+		return "", fmt.Errorf("清理後的字串不是有效的 JSON (文本分析)")
 	}
-	log.Printf("資訊：[Gemini Client] 收到並清理文本分析 API 的 JSON 回應:\n%s\n", cleanedJSON)
-	return cleanedJSON, nil
+	return cleanedJSONString, nil
 }
 
 // AnalyzeVideo 向 Gemini API 發送影片和提示以進行分析
 func (c *Client) AnalyzeVideo(ctx context.Context, videoPath string, prompt string) (*models.AnalysisResult, error) {
-	log.Printf("資訊：[Gemini Client] 開始分析影片: %s\n", videoPath)
-	log.Printf("資訊：[Gemini Client] 使用影片分析 Prompt (前100字元): %s...\n", firstNChars(prompt, 100))
+	log.Printf("資訊：[Gemini Client] AnalyzeVideo - 開始分析影片: %s\n", videoPath)
+	log.Printf("資訊：[Gemini Client] AnalyzeVideo - 使用影片分析 Prompt (前100字元): %s...\n", firstNChars(prompt, 100))
+
 	videoData, err := os.ReadFile(videoPath)
 	if err != nil {
 		return nil, fmt.Errorf("讀取影片檔案 %s 失敗: %w", videoPath, err)
@@ -165,12 +201,12 @@ func (c *Client) AnalyzeVideo(ctx context.Context, videoPath string, prompt stri
 	case ".webm":
 		videoMIMEType = "video/webm"
 	default:
-		log.Printf("警告：[Gemini Client] 未知的影片副檔名 '%s'，將使用預設 MIME 類型 '%s'\n", ext, videoMIMEType)
+		log.Printf("警告：[Gemini Client] 未知的影片副檔名 '%s'\n", ext)
 	}
 	log.Printf("資訊：[Gemini Client] 使用影片 MIME 類型: %s\n", videoMIMEType)
 	videoFilePart := genai.Blob{MIMEType: videoMIMEType, Data: videoData}
 	requestParts := []genai.Part{genai.Text(prompt), videoFilePart}
-	log.Println("資訊：[Gemini Client] 正在向 Gemini API 發送影片分析請求...")
+	log.Println("資訊：[Gemini Client] AnalyzeVideo - 正在向 Gemini API 發送請求...")
 	resp, err := c.videoAnalysisModel.GenerateContent(ctx, requestParts...)
 	if err != nil {
 		return nil, fmt.Errorf("Gemini API 影片分析 GenerateContent 失敗: %w", err)
@@ -196,34 +232,46 @@ func (c *Client) AnalyzeVideo(ctx context.Context, videoPath string, prompt stri
 		if txt, ok := part.(genai.Text); ok {
 			responseTextBuilder.WriteString(string(txt))
 		} else {
-			log.Printf("警告：[Gemini Client] 影片分析收到非預期的 Part 類型: %T\n", part)
+			log.Printf("警告：[Gemini Client] AnalyzeVideo - 收到非預期的 Part 類型: %T\n", part)
 		}
 	}
 	rawFullResponseText := responseTextBuilder.String()
 	if strings.TrimSpace(rawFullResponseText) == "" {
 		return nil, fmt.Errorf("Gemini API 影片分析回傳的文字內容為空")
 	}
+	log.Printf("資訊：[Gemini Client] AnalyzeVideo - 收到 API 的原始文字回應 (長度: %d):\nRAW_VIDEO_JSON_START\n%s\nRAW_VIDEO_JSON_END\n", len(rawFullResponseText), rawFullResponseText)
 
-	cleanedJSONString, err := cleanAndValidateJSON(rawFullResponseText, "VideoAnalysis")
-	if err != nil {
-		log.Printf("錯誤：[Gemini Client] 影片分析回應清理或驗證失敗: %v\n原始回應:\n%s\n", err, rawFullResponseText)
-		return nil, fmt.Errorf("影片分析回應清理或驗證失敗: %w", err)
+	cleanedJSONString := cleanJSONString(rawFullResponseText)
+	log.Printf("資訊：[Gemini Client] AnalyzeVideo - 清理後的 JSON 字串準備解析 (長度: %d):\nCLEANED_VIDEO_JSON_START\n%s\nCLEANED_VIDEO_JSON_END\n", len(cleanedJSONString), cleanedJSONString)
+
+	if !json.Valid([]byte(cleanedJSONString)) {
+		log.Printf("錯誤：[Gemini Client] AnalyzeVideo - 清理後的字串仍然不是有效的 JSON。完整的 Cleaned JSON String:\n%s\n", cleanedJSONString)
+		return nil, fmt.Errorf("清理後的字串不是有效的 JSON (影片分析)")
 	}
-	log.Printf("資訊：[Gemini Client] 清理後的 JSON 字串準備解析 (影片分析):\n%s\n", cleanedJSONString)
-
 	var analysis models.AnalysisResult
 	if err := json.Unmarshal([]byte(cleanedJSONString), &analysis); err != nil {
-		log.Printf("錯誤：[Gemini Client] 無法將 Gemini API 回應解析為 JSON (影片分析): %v\n完整的 Cleaned JSON 字串:\n%s\n", err, cleanedJSONString)
+		log.Printf("錯誤：[Gemini Client] AnalyzeVideo - 無法將 Gemini API 回應解析為 JSON: %v\n完整的 Cleaned JSON String:\n%s\n", err, cleanedJSONString)
 		return nil, fmt.Errorf("無法將 Gemini API 回應解析為 JSON (影片分析): %w。請檢查日誌中的完整 JSON 字串。", err)
 	}
 	log.Printf("資訊：[Gemini Client] 影片 '%s' JSON 回應解析成功。\n", videoPath)
 	return &analysis, nil
 }
 
-// firstNChars (保持不變)
+// firstNChars 輔助函式 - 確保只有一個定義
 func firstNChars(s string, n int) string {
 	if len(s) > n {
-		return s[:n]
+		// 確保不會切割在 UTF-8 字元中間
+		// 這是一個簡化的處理，對於非常長的字串和大的 n，效率可能不是最佳
+		// 但對於日誌記錄通常足夠
+		if n > 0 {
+			runes := []rune(s)
+			if len(runes) > n {
+				return string(runes[:n])
+			}
+		}
+		// 如果 n 較小或轉換為 runes 成本較高，可以回退到簡單的 byte 切割
+		// 但要注意可能截斷多位元組字元
+		// return s[:n]
 	}
 	return s
 }
