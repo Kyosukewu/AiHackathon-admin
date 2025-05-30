@@ -8,15 +8,6 @@ import (
 	"log" // 新增 log import
 )
 
-// NASStorage 定義了 NAS 儲存操作的介面
-// 為了避免循環依賴，我們可以在 services 層也定義一個介面
-// 或者直接使用 nas.FileSystemStorage 類型 (如果 nas 套件不依賴 services)
-// 這裡我們先假設一個簡單的介面
-type NASStorage interface {
-	SaveVideo(sourceName string, sourceID string, originalFileName string, videoData []byte) (string, error)
-	// ... 其他可能需要的方法 ...
-}
-
 // FetchService 負責影片擷取邏輯
 type FetchService struct {
 	cfg *config.Config

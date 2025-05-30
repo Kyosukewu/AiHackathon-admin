@@ -6,38 +6,56 @@ import (
 	"time"
 )
 
-// AnalysisStatus 定義分析狀態 (保持不變)
+// AnalysisStatus 定義分析狀態
 type AnalysisStatus string
 
 const (
-	StatusPending    AnalysisStatus = "pending"
-	StatusProcessing AnalysisStatus = "processing"
-	StatusCompleted  AnalysisStatus = "completed"
-	StatusFailed     AnalysisStatus = "failed"
+	StatusPending             AnalysisStatus = "pending"               // 初始狀態，或等待文本元數據分析
+	StatusMetadataExtracting  AnalysisStatus = "metadata_extracting"   // 新增：正在提取文本元數據
+	StatusMetadataExtracted   AnalysisStatus = "metadata_extracted"    // 新增：文本元數據已提取，等待影片內容分析
+	StatusProcessing          AnalysisStatus = "processing"            // 正在進行影片內容分析
+	StatusCompleted           AnalysisStatus = "completed"             // 所有分析已完成
+	StatusFailed              AnalysisStatus = "failed"                // 任一階段分析失敗
+	StatusTxtAnalysisFailed   AnalysisStatus = "txt_analysis_failed"   // 新增：文本分析失敗
+	StatusVideoAnalysisFailed AnalysisStatus = "video_analysis_failed" // 新增：影片內容分析失敗 (取代通用的 failed)
 )
 
-// Video 對應 videos 資料表 (保持不變)
-type Video struct {
-	ID             int64           `json:"id"`
-	SourceName     string          `json:"source_name"`
-	SourceID       string          `json:"source_id"`
-	NASPath        string          `json:"nas_path"`
-	Title          sql.NullString  `json:"title"`
-	FetchedAt      time.Time       `json:"fetched_at"`
-	AnalysisStatus AnalysisStatus  `json:"analysis_status"`
-	AnalyzedAt     sql.NullTime    `json:"analyzed_at"`
-	SourceMetadata json.RawMessage `json:"source_metadata"`
-}
-
-// --- 新增 VideoFileInfo 結構 ---
-// VideoFileInfo 用於儲存從檔案系統掃描到的影片檔案資訊
+// VideoFileInfo (保持不變)
 type VideoFileInfo struct {
-	AbsolutePath string    // 影片在 NAS 上的絕對路徑
-	RelativePath string    // 相對於 NAS basePath 的路徑 (用於存入 DB)
-	SourceName   string    // 從目錄結構解析出的來源名稱
-	OriginalID   string    // 從目錄結構解析出的原始 ID (如果有的話)
-	FileName     string    // 檔名
-	ModTime      time.Time // 檔案的最後修改時間
+	VideoAbsolutePath string
+	TextFilePath      string
+	RelativePath      string
+	SourceName        string
+	OriginalID        string
+	VideoFileName     string
+	ModTime           time.Time
 }
 
-// --- 結束新增 ---
+// ParsedTxtData (保持不變)
+type ParsedTxtData struct {
+	Title           string          `json:"title"`
+	CreationDateStr string          `json:"creation_date"`
+	DurationSeconds json.RawMessage `json:"duration_seconds"` // <--- 修改為 json.RawMessage
+	Subjects        json.RawMessage `json:"subjects"`
+	Location        string          `json:"location"`
+	ShotlistContent string          `json:"shotlist_content"`
+}
+
+// Video 結構 (保持不變)
+type Video struct {
+	ID              int64           `json:"id"`
+	SourceName      string          `json:"source_name"`
+	SourceID        string          `json:"source_id"`
+	NASPath         string          `json:"nas_path"`
+	Title           sql.NullString  `json:"title"`
+	FetchedAt       time.Time       `json:"fetched_at"`
+	PublishedAt     sql.NullTime    `json:"published_at"`
+	DurationSecs    sql.NullInt64   `json:"duration_secs"`
+	ShotlistContent JsonNullString  `json:"shotlist_content"`
+	ViewLink        sql.NullString  `json:"view_link"`
+	Subjects        json.RawMessage `json:"subjects"`
+	Location        sql.NullString  `json:"location"`
+	AnalysisStatus  AnalysisStatus  `json:"analysis_status"`
+	AnalyzedAt      sql.NullTime    `json:"analyzed_at"`
+	SourceMetadata  json.RawMessage `json:"source_metadata"`
+}

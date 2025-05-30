@@ -7,27 +7,32 @@ import (
 	"github.com/spf13/viper"
 )
 
-// --- 新增：VideoAnalysisPrompts 結構 ---
+// VideoAnalysisPrompts 用於存放影片分析相關的 Prompt 版本和當前使用版本
 type VideoAnalysisPrompts struct {
 	CurrentVersion string            `mapstructure:"currentVersion"`
 	Versions       map[string]string `mapstructure:"versions"`
 }
 
-// --- 結束新增 ---
-
-// PromptConfig 結構更新：
-type PromptConfig struct {
-	VideoAnalysis VideoAnalysisPrompts `mapstructure:"videoAnalysis"` // 修改此處
+// TextFileAnalysisPrompts 用於存放文本檔案分析相關的 Prompt 版本和當前使用版本
+type TextFileAnalysisPrompts struct {
+	CurrentVersion string            `mapstructure:"currentVersion"`
+	Versions       map[string]string `mapstructure:"versions"`
 }
 
-// SchedulerConfig (保持不變)
+// PromptConfig 結構用於組織所有類型的 Prompt 設定
+type PromptConfig struct {
+	VideoAnalysis    VideoAnalysisPrompts    `mapstructure:"videoAnalysis"`
+	TextFileAnalysis TextFileAnalysisPrompts `mapstructure:"textFileAnalysis"` // <--- 確保此欄位存在
+}
+
+// SchedulerConfig 用於存放排程器相關設定
 type SchedulerConfig struct {
 	Enabled         bool   `mapstructure:"enabled"`
 	FetchCronSpec   string `mapstructure:"fetchCronSpec"`
 	AnalyzeCronSpec string `mapstructure:"analyzeCronSpec"`
 }
 
-// Config 結構 (保持不變)
+// Config 結構 (主設定結構)
 type Config struct {
 	AppName       string              `mapstructure:"appName"`
 	APClient      APClientConfig      `mapstructure:"apClient"`
@@ -36,16 +41,17 @@ type Config struct {
 	GeminiClient  GeminiClientConfig  `mapstructure:"geminiClient"`
 	Database      DatabaseConfig      `mapstructure:"database"`
 	NAS           NASConfig           `mapstructure:"nas"`
-	Prompts       PromptConfig        `mapstructure:"prompts"`
-	Scheduler     SchedulerConfig     `mapstructure:"scheduler"`
+	Prompts       PromptConfig        `mapstructure:"prompts"`   // 包含所有 Prompt 設定
+	Scheduler     SchedulerConfig     `mapstructure:"scheduler"` // 包含排程器設定
 }
 
-// APClientConfig, ReutersClientConfig, YouTubeClientConfig, GeminiClientConfig, DatabaseConfig, NASConfig (保持不變)
-// ... (略過)
+// APClientConfig AP API 相關設定
 type APClientConfig struct {
 	APIKey  string `mapstructure:"apiKey"`
 	BaseURL string `mapstructure:"baseURL"`
 }
+
+// ReutersClientConfig Reuters API 相關設定
 type ReutersClientConfig struct {
 	ClientID     string `mapstructure:"clientID"`
 	ClientSecret string `mapstructure:"clientSecret"`
@@ -53,13 +59,21 @@ type ReutersClientConfig struct {
 	TokenURL     string `mapstructure:"tokenURL"`
 	BaseURL      string `mapstructure:"baseURL"`
 }
+
+// YouTubeClientConfig YouTube API 相關設定
 type YouTubeClientConfig struct {
 	APIKey  string `mapstructure:"apiKey"`
 	BaseURL string `mapstructure:"baseURL"`
 }
+
+// GeminiClientConfig Gemini API 相關設定
 type GeminiClientConfig struct {
-	APIKey string `mapstructure:"apiKey"`
+	APIKey         string `mapstructure:"apiKey"`
+	TextModelName  string `mapstructure:"textModelName"`  // 可選，用於文本分析的模型
+	VideoModelName string `mapstructure:"videoModelName"` // 可選，用於影片分析的模型
 }
+
+// DatabaseConfig 資料庫連線設定
 type DatabaseConfig struct {
 	Driver   string `mapstructure:"driver"`
 	Host     string `mapstructure:"host"`
@@ -68,13 +82,16 @@ type DatabaseConfig struct {
 	Password string `mapstructure:"password"`
 	DBName   string `mapstructure:"dbName"`
 }
+
+// NASConfig NAS 相關設定
 type NASConfig struct {
 	VideoPath string `mapstructure:"videoPath"`
 }
 
-// Load 函式 (新增 Prompts 的預設值)
+// Load 函式使用 Viper 載入設定
 func Load(configPath string, configName string) (*Config, error) {
 	v := viper.New()
+
 	v.AddConfigPath(configPath)
 	v.SetConfigName(configName)
 	v.SetConfigType("yaml")
@@ -85,11 +102,14 @@ func Load(configPath string, configName string) (*Config, error) {
 	v.SetDefault("appName", "AiHackathon-DefaultApp")
 	v.SetDefault("database.port", 3306)
 	v.SetDefault("database.host", "127.0.0.1")
-	// --- 修改/新增 Prompts 的預設值 ---
-	// 提供一個基本的預設 Prompt 和版本
-	v.SetDefault("prompts.videoAnalysis.currentVersion", "default-v1")
-	v.SetDefault("prompts.videoAnalysis.versions.default-v1", "請分析影片。")
-	// --- 結束修改 ---
+	v.SetDefault("geminiClient.textModelName", "gemini-1.5-flash-latest")  // 預設文本模型
+	v.SetDefault("geminiClient.videoModelName", "gemini-1.5-flash-latest") // 預設影片模型
+
+	v.SetDefault("prompts.videoAnalysis.currentVersion", "default-v-fallback")
+	v.SetDefault("prompts.videoAnalysis.versions.default-v-fallback", "請分析此影片的內容。")
+	v.SetDefault("prompts.textFileAnalysis.currentVersion", "default-t-fallback")
+	v.SetDefault("prompts.textFileAnalysis.versions.default-t-fallback", "請從文本中提取標題和摘要。")
+
 	v.SetDefault("scheduler.enabled", true)
 	v.SetDefault("scheduler.fetchCronSpec", "0 0 * * * *")
 	v.SetDefault("scheduler.analyzeCronSpec", "0 */10 * * * *")
@@ -106,13 +126,15 @@ func Load(configPath string, configName string) (*Config, error) {
 		return nil, fmt.Errorf("無法解析設定檔到結構: %w", err)
 	}
 
-	// (可選) 驗證或記錄重要設定
-	// ... (日誌記錄保持不變或根據需要調整)
+	// 驗證或記錄重要設定
 	if cfg.GeminiClient.APIKey == "" {
-		fmt.Println("警告：Gemini API Key 未設定！")
+		fmt.Println("警告：Gemini API Key 未在設定中提供！")
 	}
 	if !v.IsSet("prompts.videoAnalysis.currentVersion") {
-		fmt.Println("警告：Prompt 版本設定使用的是預設值。")
+		fmt.Println("警告：VideoAnalysis Prompt 版本設定使用的是預設值 (因為設定檔中未找到或未透過環境變數設定)。")
+	}
+	if !v.IsSet("prompts.textFileAnalysis.currentVersion") {
+		fmt.Println("警告：TextFileAnalysis Prompt 版本設定使用的是預設值 (因為設定檔中未找到或未透過環境變數設定)。")
 	}
 
 	fmt.Println("資訊：設定載入成功。")

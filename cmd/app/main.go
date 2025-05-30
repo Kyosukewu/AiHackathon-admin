@@ -3,7 +3,7 @@ package main
 import (
 	"AiHackathon-admin/internal/clients/gemini"
 	"AiHackathon-admin/internal/config"
-	"AiHackathon-admin/internal/scheduler" // 確保引入
+	"AiHackathon-admin/internal/scheduler"
 	"AiHackathon-admin/internal/services"
 	"AiHackathon-admin/internal/storage/mysql"
 	"AiHackathon-admin/internal/storage/nas"
@@ -32,11 +32,11 @@ func main() {
 	}
 	log.Println("資訊：應用程式設定載入成功。")
 
-	// --- 資料庫遷移 (保持不變) ---
+	// 資料庫遷移
 	migrationPath := "file://scripts/migrate/mysql"
 	dbDSNForMigrate := fmt.Sprintf("mysql://%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=Local&multiStatements=true",
 		cfg.Database.User, cfg.Database.Password, cfg.Database.Host, cfg.Database.Port, cfg.Database.DBName)
-	// ... (遷移邏輯保持不變) ...
+	log.Printf("資訊：準備執行資料庫遷移，來源: %s, DSN 使用資料庫: %s", migrationPath, cfg.Database.DBName)
 	m, err := migrate.New(migrationPath, dbDSNForMigrate)
 	if err != nil {
 		log.Fatalf("錯誤：建立遷移實例失敗: %v", err)
@@ -58,7 +58,6 @@ func main() {
 		newVersion, _, _ := m.Version()
 		log.Printf("資訊：資料庫遷移成功完成，版本更新至: %d。", newVersion)
 	}
-	// --- 結束資料庫遷移 ---
 
 	nasStorage, err := nas.NewFileSystemStorage(cfg.NAS)
 	if err != nil {
@@ -73,7 +72,11 @@ func main() {
 	dbStore = realDBStore
 	defer realDBStore.Close()
 
-	geminiClient, err := gemini.NewClient(cfg.GeminiClient.APIKey)
+	// 初始化 Gemini 客戶端時傳入模型名稱
+	// 您可以將這些模型名稱也移到 config.yaml 中
+	textModelName := "gemini-1.5-flash-latest"  // 或者 cfg.GeminiClient.TextModel
+	videoModelName := "gemini-1.5-flash-latest" // 或者 cfg.GeminiClient.VideoModel
+	geminiClient, err := gemini.NewClient(cfg.GeminiClient.APIKey, textModelName, videoModelName)
 	if err != nil {
 		log.Fatalf("錯誤：初始化 Gemini 客戶端失敗: %v", err)
 	}
@@ -88,25 +91,22 @@ func main() {
 		log.Fatalf("錯誤：初始化影片分析服務失敗: %v", err)
 	}
 
-	// --- 修改：根據設定檔條件啟動排程器 ---
 	if cfg.Scheduler.Enabled {
 		log.Println("資訊：排程器已在設定檔中啟用，正在初始化...")
-		// 將設定檔中的 Cron 表達式傳遞給 NewScheduler
 		appScheduler := scheduler.NewScheduler(
 			fetchSvc,
 			analyzeSvc,
-			cfg.Scheduler.FetchCronSpec,   // 從設定檔讀取
-			cfg.Scheduler.AnalyzeCronSpec, // 從設定檔讀取
+			cfg.Scheduler.FetchCronSpec,
+			cfg.Scheduler.AnalyzeCronSpec,
 		)
 		appScheduler.Start()
 		log.Println("資訊：排程器已啟動。")
-		defer appScheduler.Stop() // 只有在啟動時才需要停止
+		defer appScheduler.Stop()
 	} else {
 		log.Println("資訊：排程器已在設定檔中禁用。")
 	}
-	// --- 結束修改 ---
 
-	router := web.SetupRouter(cfg, dbStore, analyzeSvc)
+	router := web.SetupRouter(cfg, dbStore, analyzeSvc) // 傳遞 analyzeSvc 給路由
 	serverAddr := ":8080"
 	server := &http.Server{
 		Addr:    serverAddr,
