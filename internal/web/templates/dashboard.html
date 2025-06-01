@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,60 +9,68 @@
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
             margin: 0;
-            padding: 0; 
+            padding: 0;
             background-color: #f0f2f5;
             color: #333;
             line-height: 1.6;
         }
+
         .page-container {
             display: flex;
             max-width: 100%;
-            min-height: 100vh; /* 確保頁面至少與視窗一樣高 */
+            min-height: 100vh;
         }
+
         .sidebar {
             width: 280px;
-            min-width: 250px; /* 避免過度壓縮 */
-            max-width: 320px; /* 設定最大寬度 */
+            min-width: 250px;
+            max-width: 320px;
             background-color: #ffffff;
-            padding: 25px 20px; /* 增加上下 padding */
+            padding: 25px 20px;
             height: 100vh;
             overflow-y: auto;
-            box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+            box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
             position: sticky;
             top: 0;
             border-right: 1px solid #e0e0e0;
+            flex-shrink: 0;
         }
+
         .sidebar h3 {
-            font-size: 1.3em; /* 放大側邊欄標題 */
+            font-size: 1.3em;
             color: #007bff;
             margin-top: 0;
-            margin-bottom: 20px; /* 增加間距 */
+            margin-bottom: 20px;
             border-bottom: 2px solid #007bff;
             padding-bottom: 12px;
         }
+
         .filter-group {
             margin-bottom: 25px;
         }
+
         .filter-group label {
             display: block;
             margin-bottom: 8px;
             font-weight: 600;
-            font-size: 0.95em; /* 調整標籤字體大小 */
+            font-size: 0.95em;
             color: #343a40;
         }
+
         .filter-group input[type="text"],
         .filter-group select {
-            width: calc(100% - 22px); 
+            width: 100%;
             padding: 10px;
             border: 1px solid #ced4da;
-            border-radius: 5px; /* 更圓潤的邊角 */
+            border-radius: 5px;
             font-size: 0.9em;
             margin-bottom: 10px;
-            box-sizing: border-box; /* 確保 padding 和 border 不會增加總寬度 */
+            box-sizing: border-box;
         }
+
         .filter-group button {
             width: 100%;
-            padding: 10px 15px; /* 調整按鈕 padding */
+            padding: 10px 15px;
             background-color: #28a745;
             color: white;
             border: none;
@@ -71,101 +80,486 @@
             font-weight: 500;
             transition: background-color 0.2s ease;
         }
+
         .filter-group button:hover {
             background-color: #218838;
         }
 
         .main-content {
             flex-grow: 1;
-            padding: 25px 30px; /* 增加主內容區 padding */
-            overflow-y: auto; 
+            padding: 25px 30px;
+            overflow-y: auto;
         }
 
-        .main-content > h1 { /* 只針對主內容區的 H1 */
+        .main-content>h1 {
             color: #1a202c;
             border-bottom: 3px solid #007bff;
             padding-bottom: 15px;
-            margin-top: 0; /* 移除預設的 margin-top */
-            margin-bottom: 30px; /* 增加與下方內容的間距 */
+            margin-top: 0;
+            margin-bottom: 30px;
             font-size: 2.2em;
         }
+
         .controls {
-            margin-bottom: 30px; /* 增加間距 */
-            padding: 18px; /* 增加 padding */
+            margin-bottom: 30px;
+            padding: 18px;
             background-color: #fff;
             border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
             display: flex;
             gap: 15px;
             align-items: center;
-            flex-wrap: wrap; /* 按鈕過多時換行 */
+            flex-wrap: wrap;
         }
+
         .controls button {
-            background-color: #007bff; color: white; border: none; padding: 10px 20px;
-            text-align: center; text-decoration: none; display: inline-block;
-            font-size: 0.95em; border-radius: 6px; cursor: pointer; /* 調整字體和圓角 */
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 0.95em;
+            border-radius: 6px;
+            cursor: pointer;
             transition: background-color 0.2s ease-in-out, transform 0.1s ease;
         }
-        .controls button:hover { background-color: #0056b3; transform: translateY(-1px); }
-        .controls button.secondary { background-color: #6c757d; }
-        .controls button.secondary:hover { background-color: #545b62; }
-        .controls button:disabled { background-color: #ced4da; cursor: not-allowed; transform: translateY(0); }
-        
-        #statusMessageContainer { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; width: 100%;} /* 讓狀態訊息容器寬一點 */
-        .status-message { padding: 10px 15px; border-radius: 4px; font-size: 0.9em; display: none; }
-        .status-success { background-color: #d1e7dd; color: #0f5132; border: 1px solid #badbcc; display: block;}
-        .status-error { background-color: #f8d7da; color: #842029; border: 1px solid #f5c2c7; display: block;}
-        .status-info { background-color: #cff4fc; color: #055160; border: 1px solid #b6effb; display: block;}
 
-        .video-card-list { display: flex; flex-direction: column; gap: 25px; }
-        .video-card { background-color: #fff; border: 1px solid #e0e0e0; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); transition: box-shadow 0.3s ease-in-out; overflow: hidden; }
-        .video-card:hover { box-shadow: 0 6px 16px rgba(0,0,0,0.12); }
-        
-        .card-header { padding: 15px 20px; cursor: pointer; background-color: #f8f9fa; border-bottom: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center; }
-        .card-title-section { display: flex; align-items: center; flex-grow: 1; overflow: hidden; }
-        .card-header .rating-badge { font-size: 1.1em; font-weight: bold; color: #fff; background-color: #dc3545; border-radius: 4px; padding: 4px 10px; margin-right: 15px; line-height: 1; flex-shrink: 0; }
-        .card-header .rating-badge.no-data { background-color: #6c757d; font-size: 1em; padding: 4px 8px;}
-        .card-header h2 { margin: 0; color: #0056b3; font-size: 1.5em; font-weight: 600; word-break: break-word; display: inline; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .flag-icon { font-size: 1.4em; margin-left: 10px; vertical-align: middle; flex-shrink: 0; }
-        .expand-indicator { font-size: 1.1em; color: #007bff; margin-left: 15px; flex-shrink: 0; transition: transform 0.3s ease-in-out; }
-        .card-details.expanded + .card-header .expand-indicator, /* This selector might not work as intended, JS is better */
-        .video-card > .card-header > .expand-indicator.expanded-arrow { /* If JS adds 'expanded-arrow' class */
-            transform: rotate(180deg);
+        .controls button:hover {
+            background-color: #0056b3;
+            transform: translateY(-1px);
         }
-        
-        .card-summary-section { padding: 20px; display: flex; flex-wrap: wrap; /* 允許換行以適應小螢幕 */ gap: 20px; border-bottom: 1px solid #e9ecef; }
-        .video-player-container { flex: 0 0 320px; min-width: 280px; height: 180px; background-color: #111; border-radius: 6px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .video-player-container video { width: 100%; height: 100%; display: block; }
-        .video-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background-color: #e9ecef; color: #6c757d; font-style: italic; border-radius: 6px; }
-        .summary-content-wrapper { flex-grow: 1; display: flex; flex-direction: column; gap: 15px; min-width: 250px; /* 確保右側內容有最小寬度 */ }
-        
-        .summary-block {} /* 可以移除，因為 .importance-section, .metadata-block, .status-block 已有樣式 */
-        
-        .importance-section { background-color: #fff9e0; padding: 15px; border-radius: 6px; border: 1px solid #ffeeba; }
-        .importance-section .rating { font-size: 1.5em; font-weight: bold; color: #d9534f; display: block; margin-bottom: 8px; }
-        .importance-section .factors-title, .importance-section .details-title { font-weight: bold; color: #495057; margin-top: 10px; margin-bottom: 5px; font-size: 1em; }
-        .importance-section ul { list-style-type: "★ "; padding-left: 20px; margin-bottom: 8px;}
-        .importance-section pre { background-color: #fffdf5; border-color: #ffefc6; max-height: 80px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; }
 
-        .metadata-block p, .status-block p { margin: 5px 0; font-size: 0.9em; word-break: break-word; }
-        .status-block { font-size: 0.85em; color: #6c757d; margin-top: 10px; }
-        .status-block .label, .metadata-block .label { font-weight: 600; color: #343a40; margin-right: 5px; }
-        .status-value-error { color: #c82333; font-weight: bold; }
+        .controls button.secondary {
+            background-color: #6c757d;
+        }
 
-        .card-details { padding: 20px; display: none; background-color: #ffffff; border-top: 1px solid #e9ecef;}
-        .card-details.expanded { display: block; }
-        .card-details h3 { margin-top: 18px; margin-bottom: 8px; color: #0056b3; font-size: 1.15em; border-bottom: 1px solid #dee2e6; padding-bottom: 5px; display: flex; align-items: center; }
-        .card-details h3:first-child { margin-top: 0; }
-        .card-details h3 .icon { margin-right: 8px; }
-        .card-details pre { font-size: 0.9em; max-height: 180px; overflow-y: auto; white-space: pre-wrap !important; word-break: break-all; overflow-wrap: break-word; overflow-x: hidden; background-color: #f8f9fa; padding: 10px; border-radius: 4px; border: 1px solid #e0e0e0; margin: 5px 0; }
-        .card-details ul { list-style-type: disc; max-height: 180px; overflow-y: auto; word-break: break-word; }
-        .no-data { color: #868e96; font-style: italic; }
-        .label { font-weight: bold; }
-        .prompt-version-info { font-size: 0.8em; color: #6c757d; }
-        .icon::before { margin-right: 6px; font-family: "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"; }
-        .icon-id::before { content: "🆔"; } .icon-date::before { content: "📅"; } .icon-status::before { content: "📊"; } .icon-prompt::before { content: "💬"; } .icon-error::before { content: "❗ "; color: #c82333; } .icon-duration::before { content: "⏱️";} .icon-shotlist::before { content: "🎬";} .icon-location::before { content: "📍";} .icon-category::before { content: "🏷️";} .icon-link::before { content: "🔗";} .icon-summary::before { content: "📄 ";} .icon-bite::before { content: "🎤 ";} .icon-keywords::before { content: "🔑 ";} .icon-material::before { content: "📦 ";} .icon-news::before { content: "📰 ";} .icon-transcript::before { content: "📜 ";} .icon-translation::before { content: "🌐 ";} .icon-description::before { content: "🖼️ ";} .icon-rating::before { content: "⭐"; }
+        .controls button.secondary:hover {
+            background-color: #545b62;
+        }
+
+        .controls button:disabled {
+            background-color: #ced4da;
+            cursor: not-allowed;
+            transform: translateY(0);
+        }
+
+        #statusMessageContainer {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 10px;
+            width: 100%;
+        }
+
+        .status-message {
+            padding: 10px 15px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            display: none;
+        }
+
+        .status-success {
+            background-color: #d1e7dd;
+            color: #0f5132;
+            border: 1px solid #badbcc;
+            display: block;
+        }
+
+        .status-error {
+            background-color: #f8d7da;
+            color: #842029;
+            border: 1px solid #f5c2c7;
+            display: block;
+        }
+
+        .status-info {
+            background-color: #cff4fc;
+            color: #055160;
+            border: 1px solid #b6effb;
+            display: block;
+        }
+
+        .video-card-list {
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+
+        .video-card {
+            background-color: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            transition: box-shadow 0.3s ease-in-out;
+            overflow: hidden;
+        }
+
+        .video-card:hover {
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+        }
+
+        .card-header {
+            padding: 15px 20px;
+            cursor: pointer;
+            background-color: #f8f9fa;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            /* border-bottom: 1px solid #e0e0e0; /* 移到 .card-identity-meta */
+        }
+
+        .card-title-section {
+            display: flex;
+            align-items: center;
+            flex-grow: 1;
+            overflow: hidden;
+        }
+
+        .card-header .rating-badge {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #fff;
+            background-color: #dc3545;
+            border-radius: 5px;
+            padding: 5px 10px;
+            /* 增加 padding 使其更像徽章 */
+            margin-right: 15px;
+            line-height: 1;
+            flex-shrink: 0;
+        }
+
+        .card-header .rating-badge.no-data {
+            background-color: #6c757d;
+            font-size: 1em;
+            padding: 5px 8px;
+        }
+
+        .card-header h2 {
+            margin: 0;
+            color: #0056b3;
+            font-size: 1.7em;
+            /* 放大標題 */
+            font-weight: 600;
+            word-break: break-all;
+            white-space: normal;
+            overflow: visible;
+            text-overflow: clip;
+            margin-right: 10px;
+            line-height: 1.2;
+        }
+
+        .flag-icon {
+            font-size: 1.6em;
+            margin-left: 0;
+            vertical-align: middle;
+            flex-shrink: 0;
+        }
+
+        .expand-indicator {
+            font-size: 1.2em;
+            color: #007bff;
+            margin-left: 15px;
+            flex-shrink: 0;
+            transition: transform 0.3s ease-in-out;
+        }
+
+        .card-identity-meta {
+            /* 新增：卡片標題下方元數據區 */
+            padding: 8px 20px 10px 20px;
+            /* 微調 padding */
+            background-color: #f8f9fa;
+            /* 與 header 背景色一致 */
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            flex-wrap: wrap;
+            /* 允許換行 */
+            gap: 8px 20px;
+            /* row-gap column-gap, 減小行間距 */
+            font-size: 0.85em;
+            color: #495057;
+        }
+
+        .card-identity-meta p {
+            margin: 0;
+        }
+
+
+        .card-summary-section {
+            padding: 20px;
+            display: flex;
+            flex-wrap: nowrap;
+            gap: 20px;
+            border-bottom: 1px solid #e9ecef;
+            align-items: flex-start;
+        }
+
+        .video-player-container {
+            flex: 0 0 300px;
+            min-width: 280px;
+            height: 169px;
+            background-color: #111;
+            border-radius: 6px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .video-player-container video {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .video-placeholder {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #e9ecef;
+            color: #6c757d;
+            font-style: italic;
+            border-radius: 6px;
+        }
+
+        .summary-content-wrapper {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            min-width: 250px;
+        }
+
+        .importance-section {
+            background-color: #fff9e0;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #ffeeba;
+        }
+
+        .importance-section .rating {
+            /* 這個 class 原本是用於文字評級，現在徽章在 header */
+            /* 如果還要在這裡顯示評級文字，可以保留或調整 */
+        }
+
+        .importance-section .factors-title,
+        .importance-section .details-title {
+            font-weight: bold;
+            color: #495057;
+            margin-top: 10px;
+            margin-bottom: 5px;
+            font-size: 1em;
+        }
+
+        .importance-section ul {
+            list-style-type: "★ ";
+            padding-left: 20px;
+            margin-bottom: 8px;
+        }
+
+        .importance-section pre {
+            background-color: #fffdf5;
+            border-color: #ffefc6;
+            max-height: 80px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .metadata-block {
+            /* 這個 class 現在是空的，因為內容移到了 card-identity-meta */
+        }
+
+        .status-block-summary p {
+            margin: 5px 0;
+            font-size: 0.9em;
+            word-break: break-word;
+        }
+
+        .status-block-summary {
+            font-size: 0.85em;
+            color: #6c757d;
+            margin-top: 10px;
+        }
+
+        .status-block-summary .label {
+            font-weight: 600;
+            color: #343a40;
+            margin-right: 5px;
+        }
+
+        .status-value-error {
+            color: #c82333;
+            font-weight: bold;
+        }
+
+        .video-meta-footer {
+            padding: 10px 20px;
+            border-top: 1px solid #e9ecef;
+            background-color: #fdfdff;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px 25px;
+            justify-content: flex-start;
+            font-size: 0.85em;
+            color: #495057;
+        }
+
+        .video-meta-footer p {
+            margin: 3px 0;
+        }
+
+        .card-details {
+            padding: 20px;
+            display: none;
+            background-color: #ffffff;
+            border-top: 1px solid #e9ecef;
+        }
+
+        .card-details.expanded {
+            display: block;
+        }
+
+        .card-details h3 {
+            margin-top: 18px;
+            margin-bottom: 8px;
+            color: #0056b3;
+            font-size: 1.15em;
+            border-bottom: 1px solid #dee2e6;
+            padding-bottom: 5px;
+            display: flex;
+            align-items: center;
+        }
+
+        .card-details h3:first-child {
+            margin-top: 0;
+        }
+
+        .card-details h3 .icon {
+            margin-right: 8px;
+        }
+
+        .card-details pre {
+            font-size: 0.9em;
+            max-height: 180px;
+            overflow-y: auto;
+            white-space: pre-wrap !important;
+            word-break: break-all;
+            overflow-wrap: break-word;
+            overflow-x: hidden;
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #e0e0e0;
+            margin: 5px 0;
+        }
+
+        .card-details ul {
+            list-style-type: disc;
+            max-height: 180px;
+            overflow-y: auto;
+            word-break: break-word;
+        }
+
+        .no-data {
+            color: #868e96;
+            font-style: italic;
+        }
+
+        .label {
+            font-weight: bold;
+        }
+
+        .prompt-version-info {
+            font-size: 0.8em;
+            color: #6c757d;
+        }
+
+        .icon::before {
+            margin-right: 6px;
+            font-family: "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+        }
+
+        .icon-id::before {
+            content: "🆔";
+        }
+
+        .icon-date::before {
+            content: "📅";
+        }
+
+        .icon-status::before {
+            content: "📊";
+        }
+
+        .icon-prompt::before {
+            content: "💬";
+        }
+
+        .icon-error::before {
+            content: "❗ ";
+            color: #c82333;
+        }
+
+        .icon-duration::before {
+            content: "⏱️";
+        }
+
+        .icon-shotlist::before {
+            content: "🎬";
+        }
+
+        .icon-location::before {
+            content: "📍";
+        }
+
+        .icon-category::before {
+            content: "🏷️";
+        }
+
+        .icon-link::before {
+            content: "🔗";
+        }
+
+        .icon-summary::before {
+            content: "📄 ";
+        }
+
+        .icon-bite::before {
+            content: "🎤 ";
+        }
+
+        .icon-keywords::before {
+            content: "🔑 ";
+        }
+
+        .icon-material::before {
+            content: "📦 ";
+        }
+
+        .icon-news::before {
+            content: "📰 ";
+        }
+
+        .icon-transcript::before {
+            content: "📜 ";
+        }
+
+        .icon-translation::before {
+            content: "🌐 ";
+        }
+
+        .icon-description::before {
+            content: "🖼️ ";
+        }
+
+        .icon-rating::before {
+            content: "⭐";
+        }
     </style>
 </head>
+
 <body>
     <div class="page-container">
         <aside class="sidebar">
@@ -173,22 +567,22 @@
             <form id="filterSortForm">
                 <div class="filter-group">
                     <label for="keywordSearchInput">關鍵字搜尋</label>
-                    <input type="text" id="keywordSearchInput" name="search" placeholder="ID, 標題, 摘要, 關鍵字...">
+                    <input type="text" id="keywordSearchInput" name="search" value="{{.SearchTerm}}" placeholder="ID, 標題, 摘要, 關鍵字...">
                 </div>
                 <div class="filter-group">
                     <label for="sortBySelect">排序依據</label>
                     <select id="sortBySelect" name="sortBy">
-                        <option value="importance">評分</option>
-                        <option value="published_at">發布時間</option>
-                        <option value="source_id">素材編號</option>
-                        <option value="fetched_at">擷取時間</option>
+                        <option value="importance" {{if eq .SortBy "importance"}}selected{{end}}>評分</option>
+                        <option value="published_at" {{if eq .SortBy "published_at"}}selected{{end}}>發布時間</option>
+                        <option value="source_id" {{if eq .SortBy "source_id"}}selected{{end}}>素材編號</option>
+                        <option value="fetched_at" {{if eq .SortBy "fetched_at"}}selected{{end}}>擷取時間</option>
                     </select>
                 </div>
                 <div class="filter-group">
                     <label for="sortOrderSelect">排序順序</label>
                     <select id="sortOrderSelect" name="sortOrder">
-                        <option value="desc">優先顯示新的/重要的 (降冪)</option>
-                        <option value="asc">優先顯示舊的/次要的 (升冪)</option>
+                        <option value="desc" {{if eq .SortOrder "desc"}}selected{{end}}>優先顯示新的/重要的 (降冪)</option>
+                        <option value="asc" {{if eq .SortOrder "asc"}}selected{{end}}>優先顯示舊的/次要的 (升冪)</option>
                     </select>
                 </div>
                 <div class="filter-group">
@@ -211,6 +605,7 @@
                     <div class="video-card">
                         <div class="card-header" onclick="toggleDetails('details-{{$index}}', this)">
                             <div class="card-title-section">
+                                {{/* 評分徽章移到標題前 */}}
                                 {{if $video.AnalysisResult}}{{if $video.AnalysisResult.ImportanceScore}}
                                     <span class="rating-badge" title="重要性評級: {{$video.AnalysisResult.ImportanceScore.OverallRating | html}}">
                                         {{$video.AnalysisResult.ImportanceScore.OverallRating | html}}
@@ -228,6 +623,16 @@
                             <span class="expand-indicator">►</span>
                         </div>
 
+                        <div class="card-identity-meta">
+                            <p><span class="icon icon-id label">素材編號:</span> {{$video.SourceID | html}} (DB ID: {{$video.VideoID}})</p>
+                            {{if $video.PublishedAt.Valid}}
+                                <p><span class="icon icon-date label">發布時間:</span> {{$video.PublishedAt.Time.Format "2006-01-02 15:04:05"}}</p>
+                            {{else}}
+                                <p><span class="icon icon-date label">發布時間:</span> <span class="no-data">N/A</span></p>
+                            {{end}}
+                            <p><span class="icon icon-duration label">影片長度:</span> {{if $video.DurationSecs.Valid}}{{printf "%02d:%02d" .FormattedDurationMinutes .FormattedDurationSeconds}}{{else}}<span class="no-data">N/A</span>{{end}}</p>
+                        </div>
+
                         <div class="card-summary-section">
                             <div class="video-player-container">
                                 {{if $video.VideoURL}}
@@ -240,6 +645,7 @@
                                 {{end}}
                             </div>
                             <div class="summary-content-wrapper">
+                                {{/* 重要性評分的因素和細節 - 摘要區 */}}
                                 {{if $video.AnalysisResult}}{{if $video.AnalysisResult.ImportanceScore}}
                                     <div class="importance-section">
                                          {{if $video.AnalysisResult.ImportanceScore.KeyFactors}}
@@ -251,64 +657,81 @@
                                             <pre>{{$video.AnalysisResult.ImportanceScore.AssessmentDetails | html}}</pre>
                                         {{end}}
                                         {{if not (or $video.AnalysisResult.ImportanceScore.KeyFactors $video.AnalysisResult.ImportanceScore.AssessmentDetails)}}
-                                            <p class="no-data">（評級因素和說明無）</p>
+                                            {{if not $video.AnalysisResult.ImportanceScore.OverallRating }}<p class="no-data">（評級因素和說明無）</p>{{end}}
                                         {{end}}
                                     </div>
                                 {{end}}{{else}}
-                                    <div class="importance-section"> <p class="no-data">（影片內容尚未分析）</p> </div>
+                                    <div class="importance-section"> <p class="no-data">（影片內容尚未分析，無評分資訊）</p> </div>
                                 {{end}}
-                                <div class="metadata-block">
-                                     <p><span class="icon icon-id label">素材編號:</span> {{$video.SourceID | html}} (DB ID: {{$video.VideoID}})</p>
-                                    {{if $video.PublishedAt.Valid}}
-                                        <p><span class="icon icon-date label">發布時間:</span> {{$video.PublishedAt.Time.Format "2006-01-02 15:04:05"}}</p>
-                                    {{else}} <p><span class="icon icon-date label">發布時間:</span> <span class="no-data">N/A</span></p> {{end}}
-                                </div>
-                                <div class="status-block">
-                                    {{if $video.DurationSecs.Valid}}
-                                        <p><span class="icon icon-duration label">長度:</span> {{printf "%02d:%02d" .FormattedDurationMinutes .FormattedDurationSeconds}}</p>
-                                    {{else}} <p><span class="icon icon-duration label">長度:</span> <span class="no-data">N/A</span></p> {{end}}
-                                    <p><span class="icon icon-status label">分析狀態:</span> {{$video.AnalysisStatus}}</p>
+                                
+                                <div class="status-block-summary"> 
                                     {{if $video.AnalysisResult}}
-                                        {{if $video.AnalysisResult.PromptVersion}} <p class="prompt-version-info"><span class="icon icon-prompt label">Prompt 版本:</span> {{$video.AnalysisResult.PromptVersion | html}}</p> {{end}}
-                                        {{if and $video.AnalysisResult.ErrorMessage $video.AnalysisResult.ErrorMessage.Valid $video.AnalysisResult.ErrorMessage.String}} <p><span class="icon icon-error label">分析錯誤:</span> <span class="status-value-error">{{$video.AnalysisResult.ErrorMessage.String | html}}</span></p> {{end}}
+                                        {{if and $video.AnalysisResult.ErrorMessage $video.AnalysisResult.ErrorMessage.Valid $video.AnalysisResult.ErrorMessage.String}} 
+                                        <p><span class="icon icon-error label">分析錯誤:</span> <span class="status-value-error">{{$video.AnalysisResult.ErrorMessage.String | html}}</span></p> 
+                                        {{end}}
                                     {{end}}
                                 </div>
                             </div>
                         </div>
 
-                        <div id="details-{{$index}}" class="card-details">
-                            <h3><span class="icon icon-shotlist"></span>畫面 (SHOTLIST - TXT)</h3>
-                            <pre>{{if and $video.ShotlistContent.Valid $video.ShotlistContent.String}}{{$video.ShotlistContent.String | html}}{{else}}<span class="no-data">無</span>{{end}}</pre>
-                            <h3><span class="icon icon-location"></span>主要地點 (TXT)</h3>
-                            <p>{{if $video.PrimaryLocation}}{{$video.PrimaryLocation | html}}{{else}}<span class="no-data">無</span>{{end}}</p>
+                        <div class="video-meta-footer">
+                            <p><span class="icon icon-status label">分析狀態:</span> {{$video.AnalysisStatus}}</p>
                             {{if $video.AnalysisResult}}
-                                <h3><span class="icon icon-summary"></span>短摘要 (AI)</h3>
-                                <pre>{{if and .AnalysisResult.ShortSummary .AnalysisResult.ShortSummary.Valid .AnalysisResult.ShortSummary.String}}{{.AnalysisResult.ShortSummary.String | html}}{{else}}<span class="no-data">無</span>{{end}}</pre>
-                                <h3><span class="icon icon-summary"></span>列點摘要 (AI)</h3>
-                                <pre>{{if and .AnalysisResult.BulletedSummary .AnalysisResult.BulletedSummary.Valid .AnalysisResult.BulletedSummary.String}}{{.AnalysisResult.BulletedSummary.String | html}}{{else}}<span class="no-data">無</span>{{end}}</pre>
-                                <h3><span class="icon icon-bite"></span>BITE (AI)</h3>
-                                {{if .AnalysisResult.Bites}} <ul> {{range .AnalysisResult.Bites}} <li><span class="label">{{.Speaker | html}}:</span> "{{.Quote | html}}"</li> {{end}} </ul> {{else}}<p class="no-data">無</p>{{end}}
-                                <h3><span class="icon icon-location"></span>影片中其他地點 (AI)</h3>
-                                {{if .AnalysisResult.VideoMentionedLocations}} <ul> {{range .AnalysisResult.VideoMentionedLocations}} <li>{{. | html}}</li> {{end}} </ul> {{else}}<p class="no-data">無</p>{{end}}
-                                <h3><span class="icon icon-keywords"></span>關鍵字 (AI)</h3>
-                                {{if .AnalysisResult.Keywords}} <ul> {{range .AnalysisResult.Keywords}} <li><span class="label">{{.Category | html}}:</span> {{.Keyword | html}}</li> {{end}} </ul> {{else}}<p class="no-data">無</p>{{end}}
-                                <h3><span class="icon icon-category"></span>分類/主題 (綜合 - TXT &amp; AI)</h3>
-                                {{if .AnalysisResult.ConsolidatedCategories}} <ul> {{range .AnalysisResult.ConsolidatedCategories}} <li>{{. | html}}</li> {{end}} </ul>
-                                {{else}} {{if $video.PrimarySubjects}} <ul>{{range $video.PrimarySubjects}}<li>{{. | html}}</li>{{end}}</ul> {{else}}<p class="no-data">無</p>{{end}} {{end}}
-                                <h3><span class="icon icon-material"></span>素材類型 (AI)</h3>
-                                <p>{{if and .AnalysisResult.MaterialType .AnalysisResult.MaterialType.Valid .AnalysisResult.MaterialType.String}}{{.AnalysisResult.MaterialType.String | html}}{{else}}<span class="no-data">無</span>{{end}}</p>
-                                <h3><span class="icon icon-news"></span>相關新聞 (AI)</h3>
-                                {{if .AnalysisResult.RelatedNews}} <ul> {{range .AnalysisResult.RelatedNews}} <li>{{. | html}}</li> {{end}} </ul> {{else}}<p class="no-data">無</p>{{end}}
-                                <hr style="margin: 20px 0;">
-                                <h3><span class="icon icon-transcript"></span>原始逐字稿 (AI)</h3>
-                                <pre>{{if and .AnalysisResult.Transcript .AnalysisResult.Transcript.Valid .AnalysisResult.Transcript.String}}{{$video.AnalysisResult.Transcript.String | html}}{{else}}<span class="no-data">無</span>{{end}}</pre>
-                                <h3><span class="icon icon-translation"></span>原始翻譯 (AI)</h3>
-                                <pre>{{if and .AnalysisResult.Translation .AnalysisResult.Translation.Valid .AnalysisResult.Translation.String}}{{$video.AnalysisResult.Translation.String | html}}{{else}}<span class="no-data">無</span>{{end}}</pre>
-                                <h3><span class="icon icon-description"></span>原始畫面描述 (AI)</h3>
-                                <pre>{{if and .AnalysisResult.VisualDescription .AnalysisResult.VisualDescription.Valid .AnalysisResult.VisualDescription.String}}{{$video.AnalysisResult.VisualDescription.String | html}}{{else}}<span class="no-data">無</span>{{end}}</pre>
+                                {{if $video.AnalysisResult.PromptVersion}}
+                                <p class="prompt-version-info"><span class="icon icon-prompt label">影片 Prompt 版本:</span> {{$video.AnalysisResult.PromptVersion | html}}</p>
+                                {{end}}
                             {{else}}
-                                <p class="no-data">影片尚未進行內容分析 (無 AI 分析結果)</p>
+                                <p class="prompt-version-info"><span class="icon icon-prompt label">影片 Prompt 版本:</span> <span class="no-data">N/A</span></p>
                             {{end}}
+                        </div>
+
+                        <div id="details-{{$index}}" class="card-details">
+                           {{/* 移除欄位標題前的編號 */}}
+                           <h3><span class="icon icon-shotlist"></span>畫面 (SHOTLIST - TXT)</h3>
+                           <pre>{{if and $video.ShotlistContent.Valid $video.ShotlistContent.String}}{{$video.ShotlistContent.String | html}}{{else}}<span class="no-data">無</span>{{end}}</pre>
+                           
+                           <h3><span class="icon icon-location"></span>主要地點 (TXT)</h3>
+                           <p>{{if $video.PrimaryLocation}}{{$video.PrimaryLocation | html}}{{else}}<span class="no-data">無</span>{{end}}</p>
+                           
+                           {{if $video.AnalysisResult}}
+                               <h3><span class="icon icon-summary"></span>短摘要 (AI)</h3>
+                               <pre>{{if and .AnalysisResult.ShortSummary .AnalysisResult.ShortSummary.Valid .AnalysisResult.ShortSummary.String}}{{.AnalysisResult.ShortSummary.String | html}}{{else}}<span class="no-data">無</span>{{end}}</pre>
+                               
+                               <h3><span class="icon icon-summary"></span>列點摘要 (AI)</h3>
+                               <pre>{{if and .AnalysisResult.BulletedSummary .AnalysisResult.BulletedSummary.Valid .AnalysisResult.BulletedSummary.String}}{{.AnalysisResult.BulletedSummary.String | html}}{{else}}<span class="no-data">無</span>{{end}}</pre>
+                           
+                               <h3><span class="icon icon-bite"></span>BITE (AI)</h3>
+                               {{if .AnalysisResult.Bites}} <ul> {{range .AnalysisResult.Bites}} <li><span class="label">{{.Speaker | html}}:</span> "{{.Quote | html}}"</li> {{end}} </ul> {{else}}<p class="no-data">無</p>{{end}}
+                               
+                               <h3><span class="icon icon-location"></span>影片中其他地點 (AI)</h3>
+                               {{if .AnalysisResult.VideoMentionedLocations}} <ul> {{range .AnalysisResult.VideoMentionedLocations}} <li>{{. | html}}</li> {{end}} </ul> {{else}}<p class="no-data">無</p>{{end}}
+                               
+                               <h3><span class="icon icon-keywords"></span>關鍵字 (AI)</h3>
+                               {{if .AnalysisResult.Keywords}} <ul> {{range .AnalysisResult.Keywords}} <li><span class="label">{{.Category | html}}:</span> {{.Keyword | html}}</li> {{end}} </ul> {{else}}<p class="no-data">無</p>{{end}}
+                               
+                               <h3><span class="icon icon-category"></span>分類/主題 (綜合 - TXT &amp; AI)</h3>
+                               {{if .AnalysisResult.ConsolidatedCategories}} <ul> {{range .AnalysisResult.ConsolidatedCategories}} <li>{{. | html}}</li> {{end}} </ul>
+                               {{else}} {{if $video.PrimarySubjects}} <ul>{{range $video.PrimarySubjects}}<li>{{. | html}}</li>{{end}}</ul> {{else}}<p class="no-data">無</p>{{end}} {{end}}
+                               
+                               <h3><span class="icon icon-material"></span>素材類型 (AI)</h3>
+                               <p>{{if and .AnalysisResult.MaterialType .AnalysisResult.MaterialType.Valid .AnalysisResult.MaterialType.String}}{{.AnalysisResult.MaterialType.String | html}}{{else}}<span class="no-data">無</span>{{end}}</p>
+                               
+                               <h3><span class="icon icon-link"></span>一鍵看帶 (TXT)</h3>
+                               <p>{{if $video.ViewLink.Valid}}<a href="{{$video.ViewLink.String}}" target="_blank">觀看影片</a>{{else}}<span class="no-data">無連結</span>{{end}}</p>
+                               
+                               <h3><span class="icon icon-news"></span>相關新聞 (AI)</h3>
+                               {{if .AnalysisResult.RelatedNews}} <ul> {{range .AnalysisResult.RelatedNews}} <li>{{. | html}}</li> {{end}} </ul> {{else}}<p class="no-data">無</p>{{end}}
+
+                               <hr style="margin: 20px 0;">
+                               <h3><span class="icon icon-transcript"></span>原始逐字稿 (AI)</h3>
+                               <pre>{{if and .AnalysisResult.Transcript .AnalysisResult.Transcript.Valid .AnalysisResult.Transcript.String}}{{$video.AnalysisResult.Transcript.String | html}}{{else}}<span class="no-data">無</span>{{end}}</pre>
+                               <h3><span class="icon icon-translation"></span>原始翻譯 (AI)</h3>
+                               <pre>{{if and .AnalysisResult.Translation .AnalysisResult.Translation.Valid .AnalysisResult.Translation.String}}{{$video.AnalysisResult.Translation.String | html}}{{else}}<span class="no-data">無</span>{{end}}</pre>
+                               <h3><span class="icon icon-description"></span>原始畫面描述 (AI)</h3>
+                               <pre>{{if and .AnalysisResult.VisualDescription .AnalysisResult.VisualDescription.Valid .AnalysisResult.VisualDescription.String}}{{$video.AnalysisResult.VisualDescription.String | html}}{{else}}<span class="no-data">無</span>{{end}}</pre>
+                           {{else}}
+                               <p class="no-data">影片尚未進行內容分析 (無 AI 分析結果)</p>
+                           {{end}}
                         </div>
                     </div>
                     {{end}}
@@ -329,17 +752,17 @@
         const filterSortForm = document.getElementById('filterSortForm');
 
         function displayStatusMessage(message, type) { const messageDiv = document.createElement('div'); messageDiv.className = 'status-message status-' + type; messageDiv.textContent = message; statusMessageContainer.appendChild(messageDiv); setTimeout(() => { messageDiv.remove(); }, 7000); }
-        function triggerAnalysis(buttonElement, endpoint, buttonText) { console.log(`按鈕 '${buttonText}' 被點擊！`); const btn = buttonElement; btn.disabled = true; displayStatusMessage(`正在觸發 ${buttonText}，請稍候...`, 'info'); fetch(endpoint, { method: 'POST', headers: {'Content-Type': 'application/json'} }).then(response => { if (!response.ok) { return response.json().then(errData => { throw new Error(errData.error || `HTTP 錯誤！狀態碼: ${response.status}`); }).catch(() => { throw new Error(`HTTP 錯誤！狀態碼: ${response.status}`); }); } return response.json(); }).then(data => { displayStatusMessage(data.message || `${buttonText} 已成功觸發！`, 'success'); }).catch(error => { displayStatusMessage(`錯誤 (${buttonText}): ${error.message}`, 'error'); }).finally(() => { setTimeout(() => { btn.disabled = false; }, 10000); }); }
-        if (textAnalysisBtn) { textAnalysisBtn.addEventListener('click', function() { triggerAnalysis(this, '/manual-text-analyze', '文本元數據分析'); }); } else { console.error("錯誤：找不到 ID 為 'triggerTextAnalysisBtn' 的按鈕！"); }
-        if (videoAnalysisBtn) { videoAnalysisBtn.addEventListener('click', function() { triggerAnalysis(this, '/manual-video-analyze', '影片內容分析'); }); } else { console.error("錯誤：找不到 ID 為 'triggerVideoAnalysisBtn' 的按鈕！"); }
-        
+        function triggerAnalysis(buttonElement, endpoint, buttonText) { console.log(`按鈕 '${buttonText}' 被點擊！`); const btn = buttonElement; btn.disabled = true; displayStatusMessage(`正在觸發 ${buttonText}，請稍候...`, 'info'); fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' } }).then(response => { if (!response.ok) { return response.json().then(errData => { throw new Error(errData.error || `HTTP 錯誤！狀態碼: ${response.status}`); }).catch(() => { throw new Error(`HTTP 錯誤！狀態碼: ${response.status}`); }); } return response.json(); }).then(data => { displayStatusMessage(data.message || `${buttonText} 已成功觸發！`, 'success'); }).catch(error => { displayStatusMessage(`錯誤 (${buttonText}): ${error.message}`, 'error'); }).finally(() => { setTimeout(() => { btn.disabled = false; }, 10000); }); }
+        if (textAnalysisBtn) { textAnalysisBtn.addEventListener('click', function () { triggerAnalysis(this, '/manual-text-analyze', '文本元數據分析'); }); } else { console.error("錯誤：找不到 ID 為 'triggerTextAnalysisBtn' 的按鈕！"); }
+        if (videoAnalysisBtn) { videoAnalysisBtn.addEventListener('click', function () { triggerAnalysis(this, '/manual-video-analyze', '影片內容分析'); }); } else { console.error("錯誤：找不到 ID 為 'triggerVideoAnalysisBtn' 的按鈕！"); }
+
         function toggleDetails(detailsId, headerElement) { // 傳入 headerElement
             const detailsDiv = document.getElementById(detailsId);
             const indicator = headerElement ? headerElement.querySelector('.expand-indicator') : null;
-            
+
             if (detailsDiv) {
                 detailsDiv.classList.toggle('expanded');
-                if (indicator) { 
+                if (indicator) {
                     indicator.textContent = detailsDiv.classList.contains('expanded') ? '▲ 收合' : '► 展開';
                 }
             }
@@ -353,14 +776,15 @@
             if (searchParam) { document.getElementById('keywordSearchInput').value = searchParam; }
             if (sortByParam) { document.getElementById('sortBySelect').value = sortByParam; }
             if (sortOrderParam) { document.getElementById('sortOrderSelect').value = sortOrderParam; }
-            filterSortForm.addEventListener('submit', function(event) {
-                event.preventDefault(); 
+            filterSortForm.addEventListener('submit', function (event) {
+                event.preventDefault();
                 const formData = new FormData(filterSortForm);
                 const params = new URLSearchParams();
                 for (const pair of formData) { if (pair[1]) { params.append(pair[0], pair[1]); } }
-                window.location.search = params.toString(); 
+                window.location.search = params.toString();
             });
         }
     </script>
 </body>
+
 </html>
