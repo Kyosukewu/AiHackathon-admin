@@ -11,11 +11,12 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 )
 
-// DBStore 定義了應用程式需要的資料庫操作介面
+// DBStore 介面更新：GetAllVideosWithAnalysis 現在接收篩選和排序參數
 type DBStore interface {
-	GetAllVideosWithAnalysis(limit int, offset int) ([]models.Video, []models.AnalysisResult, error)
+	GetAllVideosWithAnalysis(limit int, offset int, searchTerm string, sortBy string, sortOrder string) ([]models.Video, []models.AnalysisResult, error)
 	Close() error
 	FindOrCreateVideo(video *models.Video) (int64, error)
 	SaveAnalysisResult(result *models.AnalysisResult) error
@@ -25,12 +26,27 @@ type DBStore interface {
 	GetVideosPendingContentAnalysis(status models.AnalysisStatus, limit int) ([]models.Video, error)
 }
 
-// DashboardPageData 用於傳遞給 HTML 範本的數據
+// DashboardPageData 更新：加入篩選和排序的當前值，以便在範本中設定表單預設值
 type DashboardPageData struct {
-	Videos []VideoDisplayData
+	Videos     []VideoDisplayData
+	SearchTerm string
+	SortBy     string
+	SortOrder  string
+	Paging     PagingData // 可選：用於將來實現分頁
 }
 
-// VideoDisplayData 用於在範本中顯示的影片數據，包含格式化後的欄位
+// PagingData (可選，為將來分頁做準備)
+type PagingData struct {
+	CurrentPage int
+	TotalPages  int
+	HasPrev     bool
+	HasNext     bool
+	PrevPage    int
+	NextPage    int
+	// TotalRecords int // 如果需要顯示總記錄數
+}
+
+// VideoDisplayData (保持不變)
 type VideoDisplayData struct {
 	VideoID                  int64
 	SourceName               string
@@ -40,6 +56,7 @@ type VideoDisplayData struct {
 	AnalysisStatus           models.AnalysisStatus
 	AnalysisResult           *DisplayableAnalysisResult
 	PublishedAt              sql.NullTime
+	FetchedAt                time.Time
 	DurationSecs             sql.NullInt64
 	FormattedDurationMinutes int64
 	FormattedDurationSeconds int64
@@ -51,26 +68,20 @@ type VideoDisplayData struct {
 	VideoURL                 string
 }
 
-// KeywordDisplay 用於在範本中顯示關鍵詞及其分類
+// KeywordDisplay, BiteDisplay, ImportanceScoreDisplay, DisplayableAnalysisResult (保持不變)
 type KeywordDisplay struct {
 	Keyword  string `json:"keyword"`
 	Category string `json:"category"`
 }
-
-// BiteDisplay 用於顯示 BITE 的結構
 type BiteDisplay struct {
 	Speaker string `json:"speaker"`
 	Quote   string `json:"quote"`
 }
-
-// ImportanceScoreDisplay 用於顯示重要性評分的結構
 type ImportanceScoreDisplay struct {
 	OverallRating     string   `json:"overall_rating"`
 	KeyFactors        []string `json:"key_factors"`
 	AssessmentDetails string   `json:"assessment_details"`
 }
-
-// DisplayableAnalysisResult 用於在範本中顯示的分析結果
 type DisplayableAnalysisResult struct {
 	Transcript              *models.JsonNullString
 	Translation             *models.JsonNullString
@@ -79,26 +90,27 @@ type DisplayableAnalysisResult struct {
 	VisualDescription       *models.JsonNullString
 	MaterialType            *models.JsonNullString
 	ConsolidatedCategories  []string
-	VideoMentionedLocations []string // *** 欄位已正確定義 ***
+	VideoMentionedLocations []string
 	Keywords                []KeywordDisplay
 	Bites                   []BiteDisplay
 	ImportanceScore         *ImportanceScoreDisplay
 	RelatedNews             []string
 	ErrorMessage            *models.JsonNullString
 	PromptVersion           string
+	AnalysisCreatedAt       time.Time
 }
 
-// DashboardHandler 負責處理儀表板頁面的請求
+// DashboardHandler (保持不變)
 type DashboardHandler struct {
 	db       DBStore
 	tpl      *template.Template
 	basePath string
 }
 
-// NewDashboardHandler 建立一個 DashboardHandler 實例
+// NewDashboardHandler (保持不變)
 func NewDashboardHandler(db DBStore, templateBasePath string) (*DashboardHandler, error) {
 	if db == nil {
-		return nil, fmt.Errorf("DBStore 不得為 nil")
+		return nil, fmt.Errorf("DBStore不得為nil")
 	}
 	tplPath := filepath.Join(templateBasePath, "dashboard.html")
 	tpl, err := template.ParseFiles(tplPath)
@@ -107,9 +119,7 @@ func NewDashboardHandler(db DBStore, templateBasePath string) (*DashboardHandler
 	}
 	return &DashboardHandler{db: db, tpl: tpl, basePath: templateBasePath}, nil
 }
-
-// getFlagForLocationGo (保持不變)
-func getFlagForLocationGo(locationString string) string {
+func getFlagForLocationGo(locationString string) string { /* ... */
 	if locationString == "" {
 		return ""
 	}
@@ -143,11 +153,46 @@ func getFlagForLocationGo(locationString string) string {
 	}
 	return "🏳️"
 }
+func getRatingWeight(rating string) int {
+	upperRating := strings.ToUpper(rating)
+	switch upperRating {
+	case "S":
+		return 5
+	case "A":
+		return 4
+	case "B":
+		return 3
+	case "C":
+		return 2
+	case "N":
+		return 1
+	default:
+		return 0
+	}
+}
 
-// ServeHTTP 實現 http.Handler 介面
+// ServeHTTP 方法更新：讀取查詢參數，傳遞給資料庫層，並調整排序邏輯
 func (h *DashboardHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	log.Printf("資訊：收到 %s %s 請求\n", r.Method, r.URL.Path)
-	videos, analysisResults, err := h.db.GetAllVideosWithAnalysis(20, 0)
+
+	// 從 URL 查詢參數讀取篩選和排序條件
+	searchTerm := r.URL.Query().Get("search")
+	sortBy := r.URL.Query().Get("sortBy")
+	sortOrder := r.URL.Query().Get("sortOrder")
+
+	// 設定預設排序（如果前端未提供）
+	if sortBy == "" {
+		sortBy = "importance" // 預設按評分排序
+	}
+	if sortOrder == "" {
+		sortOrder = "desc" // 預設降冪
+	}
+
+	// TODO: 實現分頁邏輯 (limit, offset)
+	limit := 20 // 暫時固定每頁數量
+	offset := 0
+
+	videos, analysisResults, err := h.db.GetAllVideosWithAnalysis(limit, offset, searchTerm, sortBy, sortOrder)
 	if err != nil {
 		log.Printf("錯誤：從資料庫獲取影片數據失敗: %v", err)
 		http.Error(w, "無法載入儀表板數據", http.StatusInternalServerError)
@@ -162,20 +207,12 @@ func (h *DashboardHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	for _, v := range videos {
 		displayItem := VideoDisplayData{
-			VideoID:         v.ID,
-			SourceName:      v.SourceName,
-			SourceID:        v.SourceID,
-			NASPath:         v.NASPath,
-			Title:           v.Title.String,
-			AnalysisStatus:  v.AnalysisStatus,
-			AnalysisResult:  nil,
-			PublishedAt:     v.PublishedAt,
-			DurationSecs:    v.DurationSecs,
-			ShotlistContent: v.ShotlistContent,
-			ViewLink:        v.ViewLink,
-			PrimaryLocation: v.Location.String,
-			FlagEmoji:       getFlagForLocationGo(v.Location.String),
-			VideoURL:        fmt.Sprintf("/media/%s", v.NASPath),
+			VideoID: v.ID, SourceName: v.SourceName, SourceID: v.SourceID,
+			NASPath: v.NASPath, Title: v.Title.String, AnalysisStatus: v.AnalysisStatus,
+			AnalysisResult: nil, PublishedAt: v.PublishedAt, FetchedAt: v.FetchedAt,
+			DurationSecs: v.DurationSecs, ShotlistContent: v.ShotlistContent, ViewLink: v.ViewLink,
+			PrimaryLocation: v.Location.String, FlagEmoji: getFlagForLocationGo(v.Location.String),
+			VideoURL: fmt.Sprintf("/media/%s", v.NASPath),
 		}
 		if v.DurationSecs.Valid {
 			displayItem.FormattedDurationMinutes = v.DurationSecs.Int64 / 60
@@ -186,27 +223,22 @@ func (h *DashboardHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			if errJ := json.Unmarshal(v.Subjects, &txtSubjects); errJ == nil {
 				displayItem.PrimarySubjects = txtSubjects
 			} else {
-				log.Printf("警告：無法將 Video.Subjects JSON ('%s') 解析為 []string: %v", string(v.Subjects), errJ)
+				log.Printf("警告：[DashboardHandler] 無法將 Video.Subjects (ID: %d) JSON ('%s') 解析為 []string: %v。", v.ID, string(v.Subjects), errJ)
 			}
 		}
 
 		if ar, ok := analysisResultMap[v.ID]; ok {
 			displayableAR := &DisplayableAnalysisResult{
-				PromptVersion:     ar.PromptVersion,
-				Transcript:        ar.Transcript,
-				Translation:       ar.Translation,
-				ShortSummary:      ar.ShortSummary,
-				BulletedSummary:   ar.BulletedSummary,
-				VisualDescription: ar.VisualDescription,
-				MaterialType:      ar.MaterialType,
-				ErrorMessage:      ar.ErrorMessage,
+				PromptVersion: ar.PromptVersion, Transcript: ar.Transcript, Translation: ar.Translation,
+				ShortSummary: ar.ShortSummary, BulletedSummary: ar.BulletedSummary,
+				VisualDescription: ar.VisualDescription, MaterialType: ar.MaterialType, ErrorMessage: ar.ErrorMessage,
+				AnalysisCreatedAt: ar.CreatedAt,
 			}
-
 			var consolidatedCategoriesMap = make(map[string]bool)
 			var consolidatedCategories []string
 			for _, subj := range displayItem.PrimarySubjects {
 				trimmedSubj := strings.TrimSpace(subj)
-				if trimmedSubj != "" && !consolidatedCategoriesMap[trimmedSubj] {
+				if trimmedSubj != "" && !strings.HasPrefix(trimmedSubj, "原始數據(解析失敗):") && !consolidatedCategoriesMap[trimmedSubj] {
 					consolidatedCategoriesMap[trimmedSubj] = true
 					consolidatedCategories = append(consolidatedCategories, trimmedSubj)
 				}
@@ -222,103 +254,95 @@ func (h *DashboardHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						}
 					}
 				} else {
-					log.Printf("警告：無法將 AnalysisResult.Topics JSON ('%s') 解析為 []string: %v", string(ar.Topics), errJ)
+					log.Printf("警告：[DashboardHandler] 無法將 AnalysisResult.Topics (VideoID: %d) JSON ('%s') 解析為 []string: %v。", ar.VideoID, string(ar.Topics), errJ)
+					consolidatedCategories = append(consolidatedCategories, fmt.Sprintf("原始Topics(解析失敗): %s", string(ar.Topics)))
 				}
 			}
 			sort.Strings(consolidatedCategories)
 			displayableAR.ConsolidatedCategories = consolidatedCategories
 
-			var geminiMentionedLocations []string
-			if len(ar.MentionedLocations) > 0 && string(ar.MentionedLocations) != "null" {
-				if errJ := json.Unmarshal(ar.MentionedLocations, &geminiMentionedLocations); errJ != nil {
-					log.Printf("警告：無法將 MentionedLocations JSON ('%s') 解析為 []string: %v", string(ar.MentionedLocations), errJ)
-				}
-			}
-			var videoOnlyMentionedLocations []string
-			primaryLocLower := strings.ToLower(displayItem.PrimaryLocation)
-			for _, loc := range geminiMentionedLocations {
-				trimmedLoc := strings.TrimSpace(loc)
-				if trimmedLoc != "" && strings.ToLower(trimmedLoc) != primaryLocLower {
-					found := false
-					for _, existingLoc := range videoOnlyMentionedLocations {
-						if existingLoc == trimmedLoc {
-							found = true
-							break
-						}
-					}
-					if !found {
-						videoOnlyMentionedLocations = append(videoOnlyMentionedLocations, trimmedLoc)
+			parseAndSet := func(raw json.RawMessage, target interface{}, fieldName string) {
+				if len(raw) > 0 && string(raw) != "null" {
+					if errJ := json.Unmarshal(raw, target); errJ != nil {
+						log.Printf("警告：[DashboardHandler] 無法將 %s (VideoID: %d) JSON ('%s') 解析: %v", fieldName, ar.VideoID, string(raw), errJ)
 					}
 				}
 			}
-			displayableAR.VideoMentionedLocations = videoOnlyMentionedLocations // *** 賦值到正確的欄位 ***
+			parseAndSet(ar.MentionedLocations, &displayableAR.VideoMentionedLocations, "MentionedLocations")
+			parseAndSet(ar.Keywords, &displayableAR.Keywords, "Keywords")
+			parseAndSet(ar.Bites, &displayableAR.Bites, "Bites")
+			parseAndSet(ar.ImportanceScore, &displayableAR.ImportanceScore, "ImportanceScore")
+			parseAndSet(ar.RelatedNews, &displayableAR.RelatedNews, "RelatedNews")
 
-			if len(ar.Keywords) > 0 && string(ar.Keywords) != "null" {
-				var keywordsSlice []KeywordDisplay
-				if errJ := json.Unmarshal(ar.Keywords, &keywordsSlice); errJ == nil {
-					displayableAR.Keywords = keywordsSlice
-				} else {
-					log.Printf("警告：無法將 Keywords JSON ('%s') 解析為 []KeywordDisplay: %v", string(ar.Keywords), errJ)
-				}
-			}
-			if len(ar.Bites) > 0 && string(ar.Bites) != "null" {
-				var bitesSlice []BiteDisplay
-				if errJ := json.Unmarshal(ar.Bites, &bitesSlice); errJ == nil {
-					displayableAR.Bites = bitesSlice
-				} else {
-					log.Printf("警告：無法將 Bites JSON ('%s') 解析為 []BiteDisplay: %v", string(ar.Bites), errJ)
-				}
-			}
-			if len(ar.ImportanceScore) > 0 && string(ar.ImportanceScore) != "null" {
-				var scoreObj ImportanceScoreDisplay
-				if errJ := json.Unmarshal(ar.ImportanceScore, &scoreObj); errJ == nil {
-					displayableAR.ImportanceScore = &scoreObj
-				} else {
-					log.Printf("警告：無法將 ImportanceScore JSON ('%s') 解析為 ImportanceScoreDisplay: %v", string(ar.ImportanceScore), errJ)
-				}
-			}
-			if len(ar.RelatedNews) > 0 && string(ar.RelatedNews) != "null" {
-				var newsSlice []string
-				if errJ := json.Unmarshal(ar.RelatedNews, &newsSlice); errJ == nil {
-					displayableAR.RelatedNews = newsSlice
-				} else {
-					log.Printf("警告：無法將 RelatedNews JSON ('%s') 解析為 []string: %v", string(ar.RelatedNews), errJ)
-				}
-			}
 			displayItem.AnalysisResult = displayableAR
 		}
 		displayData = append(displayData, displayItem)
 	}
 
-	pageData := DashboardPageData{Videos: displayData}
+	// --- 修改：只有在 sortBy 是 "importance" 時才在 Go 中排序 ---
+	// 其他排序（published_at, source_id）將依賴資料庫層的 ORDER BY
+	if sortBy == "importance" {
+		sort.Slice(displayData, func(i, j int) bool {
+			var ratingI, ratingJ int
+			var timeI, timeJ time.Time // 用於評分相同時的次要排序
+
+			if displayData[i].AnalysisResult != nil && displayData[i].AnalysisResult.ImportanceScore != nil {
+				ratingI = getRatingWeight(displayData[i].AnalysisResult.ImportanceScore.OverallRating)
+			} else {
+				ratingI = -1
+			} // 未評分或無分析結果的排在後面
+
+			if displayData[j].AnalysisResult != nil && displayData[j].AnalysisResult.ImportanceScore != nil {
+				ratingJ = getRatingWeight(displayData[j].AnalysisResult.ImportanceScore.OverallRating)
+			} else {
+				ratingJ = -1
+			}
+
+			// 根據 sortOrder 決定升冪還是降冪
+			if ratingI != ratingJ {
+				if sortOrder == "asc" {
+					return ratingI < ratingJ
+				}
+				return ratingI > ratingJ // 預設降冪
+			}
+
+			// 評分相同，使用發布時間作為次要排序 (較新的在前)
+			if displayData[i].PublishedAt.Valid {
+				timeI = displayData[i].PublishedAt.Time
+			} else if !displayData[i].FetchedAt.IsZero() {
+				timeI = displayData[i].FetchedAt
+			} else if displayData[i].AnalysisResult != nil && !displayData[i].AnalysisResult.AnalysisCreatedAt.IsZero() {
+				timeI = displayData[i].AnalysisResult.AnalysisCreatedAt
+			} else {
+				timeI = time.Time{}
+			}
+
+			if displayData[j].PublishedAt.Valid {
+				timeJ = displayData[j].PublishedAt.Time
+			} else if !displayData[j].FetchedAt.IsZero() {
+				timeJ = displayData[j].FetchedAt
+			} else if displayData[j].AnalysisResult != nil && !displayData[j].AnalysisResult.AnalysisCreatedAt.IsZero() {
+				timeJ = displayData[j].AnalysisResult.AnalysisCreatedAt
+			} else {
+				timeJ = time.Time{}
+			}
+
+			if sortOrder == "asc" {
+				return timeI.Before(timeJ)
+			}
+			return timeI.After(timeJ) // 預設降冪 (新的在前)
+		})
+	}
+	// --- 結束排序修改 ---
+
+	pageData := DashboardPageData{
+		Videos:     displayData,
+		SearchTerm: searchTerm,
+		SortBy:     sortBy,
+		SortOrder:  sortOrder,
+	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := h.tpl.Execute(w, pageData); err != nil {
 		log.Printf("錯誤：執行儀表板範本失敗: %v", err)
 	}
 }
-
-// prettyPrintJSON (保持不變)
-func prettyPrintJSON(raw json.RawMessage) string {
-	if len(raw) == 0 || string(raw) == "null" {
-		return ""
-	}
-	var obj interface{}
-	if err := json.Unmarshal(raw, &obj); err == nil {
-		pretty, err := json.MarshalIndent(obj, "", "  ")
-		if err == nil {
-			return string(pretty)
-		}
-	}
-	return string(raw)
-}
-
-// TriggerTextAnalysisHandler 和 TriggerVideoAnalysisHandler 相關程式碼 (已在各自檔案中，此處不重複)
-// type TextAnalysisPipelineRunner interface { ExecuteTextAnalysisPipeline() error }
-// type TriggerTextAnalysisHandler struct { /* ... */ }
-// func NewTriggerTextAnalysisHandler(as TextAnalysisPipelineRunner) *TriggerTextAnalysisHandler { /* ... */ }
-// func (h *TriggerTextAnalysisHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) { /* ... */ }
-
-// type VideoContentPipelineRunner interface { ExecuteVideoContentPipeline() error }
-// type TriggerVideoAnalysisHandler struct { /* ... */ }
-// func NewTriggerVideoAnalysisHandler(as VideoContentPipelineRunner) *TriggerVideoAnalysisHandler { /* ... */ }
-// func (h *TriggerVideoAnalysisHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) { /* ... */ }

@@ -6,17 +6,16 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 )
 
-// MySQLStore 結構
-type MySQLStore struct {
-	db *sql.DB
-}
+// MySQLStore 結構 (保持不變)
+type MySQLStore struct{ db *sql.DB }
 
-// NewMySQLStore, Close (保持不變)
+// NewMySQLStore, Close, copyBytes, appendIfMissingVideo (保持不變)
 func NewMySQLStore(dbCfg config.DatabaseConfig) (*MySQLStore, error) {
 	if dbCfg.Driver != "mysql" {
 		return nil, fmt.Errorf("不支援的資料庫驅動程式: %s", dbCfg.Driver)
@@ -43,8 +42,6 @@ func (s *MySQLStore) Close() error {
 	}
 	return nil
 }
-
-// copyBytes 輔助函式，用於安全地複製 []byte
 func copyBytes(src []byte) []byte {
 	if src == nil {
 		return nil
@@ -53,11 +50,21 @@ func copyBytes(src []byte) []byte {
 	copy(dst, src)
 	return dst
 }
+func appendIfMissingVideo(slice []models.Video, v models.Video) []models.Video {
+	for _, existing := range slice {
+		if existing.ID == v.ID {
+			return slice
+		}
+	}
+	return append(slice, v)
+}
 
-// GetAllVideosWithAnalysis (修正 sql.RawBytes 處理 - 創建副本)
-func (s *MySQLStore) GetAllVideosWithAnalysis(limit int, offset int) ([]models.Video, []models.AnalysisResult, error) {
-	log.Printf("資訊：MySQLStore.GetAllVideosWithAnalysis 被呼叫 (limit: %d, offset: %d)\n", limit, offset)
-	query := `
+// GetAllVideosWithAnalysis 更新：修正 WHERE 子句和參數綁定
+func (s *MySQLStore) GetAllVideosWithAnalysis(limit int, offset int, searchTerm string, sortBy string, sortOrder string) ([]models.Video, []models.AnalysisResult, error) {
+	log.Printf("資訊：MySQLStore.GetAllVideosWithAnalysis 被呼叫 (limit: %d, offset: %d, search: '%s', sortBy: '%s', sortOrder: '%s')\n", limit, offset, searchTerm, sortBy, sortOrder)
+
+	var args []interface{}
+	baseQuery := `
 		SELECT
 			v.id, v.source_name, v.source_id, v.nas_path, v.title, 
 			v.fetched_at, v.published_at, v.duration_secs, v.shotlist_content, v.view_link,
@@ -70,11 +77,67 @@ func (s *MySQLStore) GetAllVideosWithAnalysis(limit int, offset int) ([]models.V
 			ar.prompt_version, ar.created_at, ar.updated_at
 		FROM videos v
 		LEFT JOIN analysis_results ar ON v.id = ar.video_id
-		ORDER BY v.fetched_at DESC
-		LIMIT ? OFFSET ?;`
-	rows, err := s.db.Query(query, limit, offset)
+	`
+	whereClauses := []string{}
+
+	if searchTerm != "" {
+		likeTerm := "%" + strings.ReplaceAll(strings.ReplaceAll(searchTerm, "%", "\\%"), "_", "\\_") + "%"
+
+		// 目標搜尋欄位：ID, 主標題, 畫面SHOTLIST, 摘要(短/列點), 關鍵字(作為文本), 逐字稿
+		searchFieldsClause := `(
+			v.source_id LIKE ? OR 
+			v.title LIKE ? OR 
+			IFNULL(v.shotlist_content, '') LIKE ? OR 
+			IFNULL(ar.transcript, '') LIKE ? OR
+			IFNULL(ar.short_summary, '') LIKE ? OR
+			IFNULL(ar.bulleted_summary, '') LIKE ? OR
+			IFNULL(ar.keywords, '') LIKE ? OR       -- 將 JSON 關鍵字作為文本進行模糊搜索
+			IFNULL(ar.visual_description, '') LIKE ? OR
+			v.id LIKE ? -- 也可以搜尋我們的內部 DB ID
+		)`
+		whereClauses = append(whereClauses, searchFieldsClause)
+		// 根據上面的 searchFieldsClause，有 9 個 '?'
+		for i := 0; i < 9; i++ {
+			args = append(args, likeTerm)
+		}
+	}
+
+	if len(whereClauses) > 0 {
+		baseQuery += " WHERE " + strings.Join(whereClauses, " AND ") // 如果將來有多個 WHERE 條件組，這裡用 AND
+	}
+
+	orderByClause := "ORDER BY v.fetched_at DESC" // 預設排序
+	if sortBy != "" && sortBy != "importance" {
+		column := ""
+		switch sortBy {
+		case "published_at":
+			column = "v.published_at"
+		case "source_id": // 素材編號
+			column = "v.source_id" // 假設 SourceID 可以直接按字串排序
+		case "fetched_at":
+			column = "v.fetched_at"
+		default:
+			column = "v.fetched_at"
+		}
+
+		if column != "" {
+			orderDirection := "DESC"
+			if strings.ToLower(sortOrder) == "asc" {
+				orderDirection = "ASC"
+			}
+			orderByClause = fmt.Sprintf("ORDER BY %s %s, v.id %s", column, orderDirection, orderDirection)
+		}
+	}
+	baseQuery += " " + orderByClause
+
+	baseQuery += " LIMIT ? OFFSET ?"
+	args = append(args, limit, offset)
+
+	log.Printf("DEBUG SQL Query: %s\nArgs: %v\n", baseQuery, args)
+
+	rows, err := s.db.Query(baseQuery, args...)
 	if err != nil {
-		return nil, nil, fmt.Errorf("查詢影片和分析結果失敗: %w", err)
+		return nil, nil, fmt.Errorf("查詢影片和分析結果失敗 (SQL: %s, Args: %v): %w", baseQuery, args, err)
 	}
 	defer rows.Close()
 
@@ -84,13 +147,11 @@ func (s *MySQLStore) GetAllVideosWithAnalysis(limit int, offset int) ([]models.V
 	for rows.Next() {
 		var v models.Video
 		var arTemp models.AnalysisResult
-
-		var sourceMetadataSQL, subjectsSQL sql.RawBytes // 用 sql.RawBytes 接收
+		var sourceMetadataSQL, subjectsSQL sql.RawBytes
 		var shotlistContentSQL, viewLinkSQL, locationSQL sql.NullString
-
 		var arVideoID sql.NullInt64
 		var arTranscriptSQL, arTranslationSQL, arShortSummarySQL, arBulletedSummarySQL, arMaterialTypeSQL, arVisualDescriptionSQL, arErrorMessageSQL, arPromptVersionSQL sql.NullString
-		var arTopicsSQL, arKeywordsSQL, arBitesSQL, arMentionedLocationsSQL, arImportanceScoreSQL, arRelatedNewsSQL sql.RawBytes // 用 sql.RawBytes 接收
+		var arTopicsSQL, arKeywordsSQL, arBitesSQL, arMentionedLocationsSQL, arImportanceScoreSQL, arRelatedNewsSQL sql.RawBytes
 		var arCreatedAt, arUpdatedAt sql.NullTime
 
 		err := rows.Scan(
@@ -98,10 +159,13 @@ func (s *MySQLStore) GetAllVideosWithAnalysis(limit int, offset int) ([]models.V
 			&v.FetchedAt, &v.PublishedAt, &v.DurationSecs, &shotlistContentSQL, &viewLinkSQL,
 			&v.AnalysisStatus, &v.AnalyzedAt, &sourceMetadataSQL,
 			&subjectsSQL, &locationSQL,
-			&arVideoID, &arTranscriptSQL, &arTranslationSQL, &arShortSummarySQL, &arBulletedSummarySQL,
-			&arBitesSQL, &arMentionedLocationsSQL, &arImportanceScoreSQL, &arMaterialTypeSQL, &arRelatedNewsSQL,
-			&arVisualDescriptionSQL, &arTopicsSQL, &arKeywordsSQL, &arErrorMessageSQL, &arPromptVersionSQL,
-			&arCreatedAt, &arUpdatedAt,
+			&arVideoID,
+			&arTranscriptSQL, &arTranslationSQL,
+			&arShortSummarySQL, &arBulletedSummarySQL, &arBitesSQL, &arMentionedLocationsSQL,
+			&arImportanceScoreSQL, &arMaterialTypeSQL, &arRelatedNewsSQL,
+			&arVisualDescriptionSQL,
+			&arTopicsSQL, &arKeywordsSQL, &arErrorMessageSQL,
+			&arPromptVersionSQL, &arCreatedAt, &arUpdatedAt,
 		)
 		if err != nil {
 			log.Printf("錯誤：[GetAllVideos] 掃描查詢結果行失敗: %v", err)
@@ -110,19 +174,26 @@ func (s *MySQLStore) GetAllVideosWithAnalysis(limit int, offset int) ([]models.V
 
 		if sourceMetadataSQL != nil {
 			v.SourceMetadata = copyBytes(sourceMetadataSQL)
-		} // *** 複製數據 ***
+		}
 		if subjectsSQL != nil {
 			v.Subjects = copyBytes(subjectsSQL)
-			log.Printf("DEBUG DB GETALL: VideoID %d, Scanned Subjects: %s", v.ID, string(subjectsSQL))
-		} // *** 複製數據 ***
-
+		}
 		v.ShotlistContent = models.JsonNullString{NullString: shotlistContentSQL}
 		v.Location = locationSQL
 		if viewLinkSQL.Valid {
 			v.ViewLink = viewLinkSQL
 		}
 
-		videos = appendIfMissingVideo(videos, v)
+		var videoExists bool
+		for _, existingVideo := range videos {
+			if existingVideo.ID == v.ID {
+				videoExists = true
+				break
+			}
+		}
+		if !videoExists {
+			videos = append(videos, v)
+		}
 
 		if arVideoID.Valid {
 			arTemp.VideoID = arVideoID.Int64
@@ -161,44 +232,36 @@ func (s *MySQLStore) GetAllVideosWithAnalysis(limit int, offset int) ([]models.V
 			} else {
 				arTemp.ErrorMessage = nil
 			}
-
 			if arBitesSQL != nil {
 				arTemp.Bites = copyBytes(arBitesSQL)
-				log.Printf("DEBUG DB GETALL: VideoID %d, Scanned ar.Bites: %s", arTemp.VideoID, string(arBitesSQL))
 			} else {
 				arTemp.Bites = nil
-			} // *** 複製數據 ***
+			}
 			if arMentionedLocationsSQL != nil {
 				arTemp.MentionedLocations = copyBytes(arMentionedLocationsSQL)
-				log.Printf("DEBUG DB GETALL: VideoID %d, Scanned ar.MentionedLocations: %s", arTemp.VideoID, string(arMentionedLocationsSQL))
 			} else {
 				arTemp.MentionedLocations = nil
-			} // *** 複製數據 ***
+			}
 			if arImportanceScoreSQL != nil {
 				arTemp.ImportanceScore = copyBytes(arImportanceScoreSQL)
-				log.Printf("DEBUG DB GETALL: VideoID %d, Scanned ar.ImportanceScore: %s", arTemp.VideoID, string(arImportanceScoreSQL))
 			} else {
 				arTemp.ImportanceScore = nil
-			} // *** 複製數據 ***
+			}
 			if arRelatedNewsSQL != nil {
 				arTemp.RelatedNews = copyBytes(arRelatedNewsSQL)
-				log.Printf("DEBUG DB GETALL: VideoID %d, Scanned ar.RelatedNews: %s", arTemp.VideoID, string(arRelatedNewsSQL))
 			} else {
 				arTemp.RelatedNews = nil
-			} // *** 複製數據 ***
+			}
 			if arTopicsSQL != nil {
 				arTemp.Topics = copyBytes(arTopicsSQL)
-				log.Printf("DEBUG DB GETALL: VideoID %d, Scanned ar.Topics: %s", arTemp.VideoID, string(arTopicsSQL))
 			} else {
 				arTemp.Topics = nil
-			} // *** 複製數據 ***
+			}
 			if arKeywordsSQL != nil {
 				arTemp.Keywords = copyBytes(arKeywordsSQL)
-				log.Printf("DEBUG DB GETALL: VideoID %d, Scanned ar.Keywords: %s", arTemp.VideoID, string(arKeywordsSQL))
 			} else {
 				arTemp.Keywords = nil
-			} // *** 複製數據 ***
-
+			}
 			if arPromptVersionSQL.Valid {
 				arTemp.PromptVersion = arPromptVersionSQL.String
 			} else {
@@ -226,16 +289,8 @@ func (s *MySQLStore) GetAllVideosWithAnalysis(limit int, offset int) ([]models.V
 	return videos, finalAnalysisResults, nil
 }
 
-func appendIfMissingVideo(slice []models.Video, v models.Video) []models.Video {
-	for _, existing := range slice {
-		if existing.ID == v.ID {
-			return slice
-		}
-	}
-	return append(slice, v)
-}
-
-// FindOrCreateVideo, SaveAnalysisResult, UpdateVideoAnalysisStatus (保持不變)
+// FindOrCreateVideo, SaveAnalysisResult, UpdateVideoAnalysisStatus, GetPendingVideos, GetVideoByID, GetVideosPendingContentAnalysis (保持不變)
+// ... (這些函式的內容與您目前的版本相同，此處省略以保持簡潔) ...
 func (s *MySQLStore) FindOrCreateVideo(video *models.Video) (int64, error) {
 	if video == nil {
 		return 0, fmt.Errorf("傳入的 video 物件不得為 nil")
@@ -333,17 +388,8 @@ func (s *MySQLStore) UpdateVideoAnalysisStatus(videoID int64, status models.Anal
 	log.Printf("資訊：影片分析狀態成功更新 (VideoID: %d, Status: %s)\n", videoID, status)
 	return nil
 }
-
-// GetPendingVideos (修正 sql.RawBytes 處理 - 創建副本)
 func (s *MySQLStore) GetPendingVideos(limit int) ([]models.Video, error) {
-	query := `
-		SELECT id, source_name, source_id, nas_path, title, 
-		       fetched_at, published_at, duration_secs, shotlist_content, view_link, 
-		       subjects, location, analysis_status, analyzed_at, source_metadata
-		FROM videos
-		WHERE analysis_status = ? OR analysis_status = ? OR analysis_status = ?
-		ORDER BY fetched_at ASC
-		LIMIT ?;`
+	query := ` SELECT id, source_name, source_id, nas_path, title, fetched_at, published_at, duration_secs, shotlist_content, view_link, subjects, location, analysis_status, analyzed_at, source_metadata FROM videos WHERE analysis_status = ? OR analysis_status = ? OR analysis_status = ? ORDER BY fetched_at ASC LIMIT ?;`
 	rows, err := s.db.Query(query, models.StatusPending, models.StatusTxtAnalysisFailed, models.StatusMetadataExtracted, limit)
 	if err != nil {
 		return nil, fmt.Errorf("查詢待處理影片失敗: %w", err)
@@ -354,22 +400,17 @@ func (s *MySQLStore) GetPendingVideos(limit int) ([]models.Video, error) {
 		var v models.Video
 		var sourceMetadataSQL, subjectsSQL sql.RawBytes
 		var shotlistContentSQL, viewLinkSQL, locationSQL sql.NullString
-		err := rows.Scan(
-			&v.ID, &v.SourceName, &v.SourceID, &v.NASPath, &v.Title,
-			&v.FetchedAt, &v.PublishedAt, &v.DurationSecs, &shotlistContentSQL, &viewLinkSQL,
-			&subjectsSQL, &locationSQL,
-			&v.AnalysisStatus, &v.AnalyzedAt, &sourceMetadataSQL,
-		)
+		err := rows.Scan(&v.ID, &v.SourceName, &v.SourceID, &v.NASPath, &v.Title, &v.FetchedAt, &v.PublishedAt, &v.DurationSecs, &shotlistContentSQL, &viewLinkSQL, &subjectsSQL, &locationSQL, &v.AnalysisStatus, &v.AnalyzedAt, &sourceMetadataSQL)
 		if err != nil {
 			log.Printf("錯誤：掃描待處理影片查詢結果行失敗: %v", err)
 			continue
 		}
 		if sourceMetadataSQL != nil {
 			v.SourceMetadata = copyBytes(sourceMetadataSQL)
-		} // *** 複製數據 ***
+		}
 		if subjectsSQL != nil {
 			v.Subjects = copyBytes(subjectsSQL)
-		} // *** 複製數據 ***
+		}
 		v.ShotlistContent = models.JsonNullString{NullString: shotlistContentSQL}
 		v.Location = locationSQL
 		if viewLinkSQL.Valid {
@@ -383,28 +424,16 @@ func (s *MySQLStore) GetPendingVideos(limit int) ([]models.Video, error) {
 	log.Printf("資訊：查詢到 %d 個待處理影片。\n", len(videos))
 	return videos, nil
 }
-
-// GetVideoByID (修正 sql.RawBytes 處理 - 創建副本)
 func (s *MySQLStore) GetVideoByID(videoID int64) (*models.Video, error) {
 	if videoID == 0 {
 		return nil, fmt.Errorf("無效的 VideoID")
 	}
-	query := `
-		SELECT id, source_name, source_id, nas_path, title, 
-		       fetched_at, published_at, duration_secs, shotlist_content, view_link, 
-		       subjects, location, analysis_status, analyzed_at, source_metadata
-		FROM videos
-		WHERE id = ?;`
+	query := ` SELECT id, source_name, source_id, nas_path, title, fetched_at, published_at, duration_secs, shotlist_content, view_link, subjects, location, analysis_status, analyzed_at, source_metadata FROM videos WHERE id = ?;`
 	row := s.db.QueryRow(query, videoID)
 	var v models.Video
-	var sourceMetadataBytes, subjectsBytes []byte // 改為 []byte
+	var sourceMetadataBytes, subjectsBytes []byte
 	var shotlistContentSQL, locationSQL, viewLinkSQL sql.NullString
-	err := row.Scan(
-		&v.ID, &v.SourceName, &v.SourceID, &v.NASPath, &v.Title,
-		&v.FetchedAt, &v.PublishedAt, &v.DurationSecs, &shotlistContentSQL, &viewLinkSQL,
-		&subjectsBytes, &locationSQL, // 使用 []byte
-		&v.AnalysisStatus, &v.AnalyzedAt, &sourceMetadataBytes,
-	)
+	err := row.Scan(&v.ID, &v.SourceName, &v.SourceID, &v.NASPath, &v.Title, &v.FetchedAt, &v.PublishedAt, &v.DurationSecs, &shotlistContentSQL, &viewLinkSQL, &subjectsBytes, &locationSQL, &v.AnalysisStatus, &v.AnalyzedAt, &sourceMetadataBytes)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
@@ -413,10 +442,10 @@ func (s *MySQLStore) GetVideoByID(videoID int64) (*models.Video, error) {
 	}
 	if sourceMetadataBytes != nil {
 		v.SourceMetadata = copyBytes(sourceMetadataBytes)
-	} // *** 複製數據 ***
+	}
 	if subjectsBytes != nil {
 		v.Subjects = copyBytes(subjectsBytes)
-	} // *** 複製數據 ***
+	}
 	v.ShotlistContent = models.JsonNullString{NullString: shotlistContentSQL}
 	v.Location = locationSQL
 	if viewLinkSQL.Valid {
@@ -424,17 +453,8 @@ func (s *MySQLStore) GetVideoByID(videoID int64) (*models.Video, error) {
 	}
 	return &v, nil
 }
-
-// GetVideosPendingContentAnalysis (修正 sql.RawBytes 處理 - 創建副本)
 func (s *MySQLStore) GetVideosPendingContentAnalysis(status models.AnalysisStatus, limit int) ([]models.Video, error) {
-	query := `
-		SELECT id, source_name, source_id, nas_path, title, 
-		       fetched_at, published_at, duration_secs, shotlist_content, view_link, 
-		       subjects, location, analysis_status, analyzed_at, source_metadata
-		FROM videos
-		WHERE analysis_status = ?
-		ORDER BY fetched_at ASC
-		LIMIT ?;`
+	query := ` SELECT id, source_name, source_id, nas_path, title, fetched_at, published_at, duration_secs, shotlist_content, view_link, subjects, location, analysis_status, analyzed_at, source_metadata FROM videos WHERE analysis_status = ? ORDER BY fetched_at ASC LIMIT ?;`
 	rows, err := s.db.Query(query, status, limit)
 	if err != nil {
 		return nil, fmt.Errorf("查詢狀態為 '%s' 的影片失敗: %w", status, err)
@@ -445,22 +465,17 @@ func (s *MySQLStore) GetVideosPendingContentAnalysis(status models.AnalysisStatu
 		var v models.Video
 		var sourceMetadataSQL, subjectsSQL sql.RawBytes
 		var shotlistContentSQL, viewLinkSQL, locationSQL sql.NullString
-		err := rows.Scan(
-			&v.ID, &v.SourceName, &v.SourceID, &v.NASPath, &v.Title,
-			&v.FetchedAt, &v.PublishedAt, &v.DurationSecs, &shotlistContentSQL, &viewLinkSQL,
-			&subjectsSQL, &locationSQL,
-			&v.AnalysisStatus, &v.AnalyzedAt, &sourceMetadataSQL,
-		)
+		err := rows.Scan(&v.ID, &v.SourceName, &v.SourceID, &v.NASPath, &v.Title, &v.FetchedAt, &v.PublishedAt, &v.DurationSecs, &shotlistContentSQL, &viewLinkSQL, &subjectsSQL, &locationSQL, &v.AnalysisStatus, &v.AnalyzedAt, &sourceMetadataSQL)
 		if err != nil {
 			log.Printf("錯誤：掃描狀態為 '%s' 的影片查詢結果行失敗: %v", status, err)
 			continue
 		}
 		if sourceMetadataSQL != nil {
 			v.SourceMetadata = copyBytes(sourceMetadataSQL)
-		} // *** 複製數據 ***
+		}
 		if subjectsSQL != nil {
 			v.Subjects = copyBytes(subjectsSQL)
-		} // *** 複製數據 ***
+		}
 		v.ShotlistContent = models.JsonNullString{NullString: shotlistContentSQL}
 		v.Location = locationSQL
 		if viewLinkSQL.Valid {
