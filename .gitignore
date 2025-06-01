@@ -2,6 +2,6 @@
 /venv
 /Download
 /.env
-/configs
+/configs/config.yaml
 /debug
 main
