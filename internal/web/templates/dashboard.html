@@ -3,38 +3,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>影片分析儀表板 - 卡片視圖（篩選排序版）</title>
+    <title>影片分析儀表板 - 卡片視圖（最終版）</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
             margin: 0;
-            padding: 0; /* 移除 body 的 padding，由 .page-container 控制 */
+            padding: 0; 
             background-color: #f0f2f5;
             color: #333;
             line-height: 1.6;
         }
-        .page-container { /* 新增：整體頁面容器 */
+        .page-container {
             display: flex;
-            max-width: 100%; /* 佔滿可用寬度 */
+            max-width: 100%;
+            min-height: 100vh; /* 確保頁面至少與視窗一樣高 */
         }
         .sidebar {
-            width: 280px; /* 側邊欄寬度 */
-            min-width: 250px;
-            background-color: #fff;
-            padding: 20px;
-            height: 100vh; /* 滿屏高 */
-            overflow-y: auto; /* 內容過多時滾動 */
-            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
-            position: sticky; /* 黏貼側邊欄 */
+            width: 280px;
+            min-width: 250px; /* 避免過度壓縮 */
+            max-width: 320px; /* 設定最大寬度 */
+            background-color: #ffffff;
+            padding: 25px 20px; /* 增加上下 padding */
+            height: 100vh;
+            overflow-y: auto;
+            box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+            position: sticky;
             top: 0;
+            border-right: 1px solid #e0e0e0;
         }
         .sidebar h3 {
-            font-size: 1.2em;
+            font-size: 1.3em; /* 放大側邊欄標題 */
             color: #007bff;
             margin-top: 0;
-            margin-bottom: 15px;
-            border-bottom: 1px solid #eee;
-            padding-bottom: 10px;
+            margin-bottom: 20px; /* 增加間距 */
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 12px;
         }
         .filter-group {
             margin-bottom: 25px;
@@ -43,68 +46,72 @@
             display: block;
             margin-bottom: 8px;
             font-weight: 600;
-            font-size: 0.9em;
-            color: #495057;
+            font-size: 0.95em; /* 調整標籤字體大小 */
+            color: #343a40;
         }
         .filter-group input[type="text"],
         .filter-group select {
-            width: calc(100% - 22px); /* 減去 padding 和 border */
+            width: calc(100% - 22px); 
             padding: 10px;
             border: 1px solid #ced4da;
-            border-radius: 4px;
+            border-radius: 5px; /* 更圓潤的邊角 */
             font-size: 0.9em;
             margin-bottom: 10px;
+            box-sizing: border-box; /* 確保 padding 和 border 不會增加總寬度 */
         }
         .filter-group button {
             width: 100%;
-            padding: 10px;
+            padding: 10px 15px; /* 調整按鈕 padding */
             background-color: #28a745;
             color: white;
             border: none;
-            border-radius: 4px;
+            border-radius: 5px;
             cursor: pointer;
             font-size: 1em;
+            font-weight: 500;
             transition: background-color 0.2s ease;
         }
         .filter-group button:hover {
             background-color: #218838;
         }
 
-        .main-content { /* 主內容區域 */
+        .main-content {
             flex-grow: 1;
-            padding: 20px;
-            overflow-y: auto; /* 如果卡片列表本身也需要滾動 */
-            /* height: 100vh;  如果希望主內容區也獨立滾動且不影響 sidebar */
+            padding: 25px 30px; /* 增加主內容區 padding */
+            overflow-y: auto; 
         }
 
-        h1 { /* 應用於 .main-content 內的 h1 */
+        .main-content > h1 { /* 只針對主內容區的 H1 */
             color: #1a202c;
             border-bottom: 3px solid #007bff;
             padding-bottom: 15px;
-            margin-bottom: 25px;
+            margin-top: 0; /* 移除預設的 margin-top */
+            margin-bottom: 30px; /* 增加與下方內容的間距 */
             font-size: 2.2em;
         }
         .controls {
-            margin-bottom: 25px;
-            padding: 15px;
+            margin-bottom: 30px; /* 增加間距 */
+            padding: 18px; /* 增加 padding */
             background-color: #fff;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
             display: flex;
             gap: 15px;
             align-items: center;
+            flex-wrap: wrap; /* 按鈕過多時換行 */
         }
         .controls button {
             background-color: #007bff; color: white; border: none; padding: 10px 20px;
             text-align: center; text-decoration: none; display: inline-block;
-            font-size: 1em; border-radius: 6px; cursor: pointer;
+            font-size: 0.95em; border-radius: 6px; cursor: pointer; /* 調整字體和圓角 */
             transition: background-color 0.2s ease-in-out, transform 0.1s ease;
         }
         .controls button:hover { background-color: #0056b3; transform: translateY(-1px); }
         .controls button.secondary { background-color: #6c757d; }
         .controls button.secondary:hover { background-color: #545b62; }
         .controls button:disabled { background-color: #ced4da; cursor: not-allowed; transform: translateY(0); }
-        #statusMessageContainer { display: flex; flex-direction: column; gap: 8px; margin-top: 15px; }
+        
+        #statusMessageContainer { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; width: 100%;} /* 讓狀態訊息容器寬一點 */
         .status-message { padding: 10px 15px; border-radius: 4px; font-size: 0.9em; display: none; }
         .status-success { background-color: #d1e7dd; color: #0f5132; border: 1px solid #badbcc; display: block;}
         .status-error { background-color: #f8d7da; color: #842029; border: 1px solid #f5c2c7; display: block;}
@@ -113,35 +120,45 @@
         .video-card-list { display: flex; flex-direction: column; gap: 25px; }
         .video-card { background-color: #fff; border: 1px solid #e0e0e0; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); transition: box-shadow 0.3s ease-in-out; overflow: hidden; }
         .video-card:hover { box-shadow: 0 6px 16px rgba(0,0,0,0.12); }
-        .card-header { padding: 18px 20px; cursor: pointer; background-color: #f8f9fa; border-bottom: 1px solid #e9ecef; display: flex; justify-content: space-between; align-items: center; }
+        
+        .card-header { padding: 15px 20px; cursor: pointer; background-color: #f8f9fa; border-bottom: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center; }
         .card-title-section { display: flex; align-items: center; flex-grow: 1; overflow: hidden; }
-        .card-header .rating-badge { font-size: 1.2em; font-weight: bold; color: #fff; background-color: #dc3545; border-radius: 4px; padding: 3px 8px; margin-right: 12px; line-height: 1; flex-shrink: 0; }
-        .card-header .rating-badge.no-data { background-color: #6c757d; }
-        .card-header h2 { margin: 0; color: #0056b3; font-size: 1.6em; font-weight: 600; word-break: break-word; display: inline; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .flag-icon { font-size: 1.5em; margin-left: 10px; vertical-align: middle; flex-shrink: 0; }
-        .expand-indicator { font-size: 1em; color: #007bff; margin-left: 15px; flex-shrink: 0; transition: transform 0.2s ease-in-out; }
-        .card-summary-section { padding: 18px 20px; display: flex; flex-wrap: nowrap; gap: 20px; border-bottom: 1px solid #f0f0f0; }
-        .video-player-container { flex: 0 0 320px; min-width: 280px; height: 180px; background-color: #000; border-radius: 4px; overflow: hidden; }
+        .card-header .rating-badge { font-size: 1.1em; font-weight: bold; color: #fff; background-color: #dc3545; border-radius: 4px; padding: 4px 10px; margin-right: 15px; line-height: 1; flex-shrink: 0; }
+        .card-header .rating-badge.no-data { background-color: #6c757d; font-size: 1em; padding: 4px 8px;}
+        .card-header h2 { margin: 0; color: #0056b3; font-size: 1.5em; font-weight: 600; word-break: break-word; display: inline; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .flag-icon { font-size: 1.4em; margin-left: 10px; vertical-align: middle; flex-shrink: 0; }
+        .expand-indicator { font-size: 1.1em; color: #007bff; margin-left: 15px; flex-shrink: 0; transition: transform 0.3s ease-in-out; }
+        .card-details.expanded + .card-header .expand-indicator, /* This selector might not work as intended, JS is better */
+        .video-card > .card-header > .expand-indicator.expanded-arrow { /* If JS adds 'expanded-arrow' class */
+            transform: rotate(180deg);
+        }
+        
+        .card-summary-section { padding: 20px; display: flex; flex-wrap: wrap; /* 允許換行以適應小螢幕 */ gap: 20px; border-bottom: 1px solid #e9ecef; }
+        .video-player-container { flex: 0 0 320px; min-width: 280px; height: 180px; background-color: #111; border-radius: 6px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         .video-player-container video { width: 100%; height: 100%; display: block; }
-        .video-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background-color: #e9ecef; color: #6c757d; font-style: italic; border-radius: 4px; }
-        .summary-content-wrapper { flex-grow: 1; display: flex; flex-direction: column; gap: 15px; min-width: 0; }
-        .summary-block {}
-        .importance-section { background-color: #fff9e0; padding: 15px; border-radius: 6px; border: 1px solid #ffeeba; order: -1; }
-        .importance-section .rating { font-size: 1.6em; font-weight: bold; color: #d9534f; display: block; margin-bottom: 8px; }
-        .importance-section .factors-title, .importance-section .details-title { font-weight: bold; color: #495057; margin-top: 10px; margin-bottom: 5px; font-size: 1.05em; }
+        .video-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background-color: #e9ecef; color: #6c757d; font-style: italic; border-radius: 6px; }
+        .summary-content-wrapper { flex-grow: 1; display: flex; flex-direction: column; gap: 15px; min-width: 250px; /* 確保右側內容有最小寬度 */ }
+        
+        .summary-block {} /* 可以移除，因為 .importance-section, .metadata-block, .status-block 已有樣式 */
+        
+        .importance-section { background-color: #fff9e0; padding: 15px; border-radius: 6px; border: 1px solid #ffeeba; }
+        .importance-section .rating { font-size: 1.5em; font-weight: bold; color: #d9534f; display: block; margin-bottom: 8px; }
+        .importance-section .factors-title, .importance-section .details-title { font-weight: bold; color: #495057; margin-top: 10px; margin-bottom: 5px; font-size: 1em; }
         .importance-section ul { list-style-type: "★ "; padding-left: 20px; margin-bottom: 8px;}
-        .importance-section pre { background-color: #fffdf5; border-color: #ffefc6; max-height: 80px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; overflow-wrap: break-word; }
-        .metadata-block p, .status-block p { margin: 6px 0; font-size: 0.9em; word-break: break-word; }
-        .status-block { font-size: 0.8em; color: #6c757d; margin-top: 10px; }
+        .importance-section pre { background-color: #fffdf5; border-color: #ffefc6; max-height: 80px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; }
+
+        .metadata-block p, .status-block p { margin: 5px 0; font-size: 0.9em; word-break: break-word; }
+        .status-block { font-size: 0.85em; color: #6c757d; margin-top: 10px; }
         .status-block .label, .metadata-block .label { font-weight: 600; color: #343a40; margin-right: 5px; }
         .status-value-error { color: #c82333; font-weight: bold; }
-        .card-details { padding: 20px; display: none; background-color: #ffffff; }
+
+        .card-details { padding: 20px; display: none; background-color: #ffffff; border-top: 1px solid #e9ecef;}
         .card-details.expanded { display: block; }
-        .card-details h3 { margin-top: 20px; margin-bottom: 10px; color: #0056b3; font-size: 1.2em; border-bottom: 1px solid #dee2e6; padding-bottom: 6px; display: flex; align-items: center; }
+        .card-details h3 { margin-top: 18px; margin-bottom: 8px; color: #0056b3; font-size: 1.15em; border-bottom: 1px solid #dee2e6; padding-bottom: 5px; display: flex; align-items: center; }
         .card-details h3:first-child { margin-top: 0; }
         .card-details h3 .icon { margin-right: 8px; }
-        .card-details pre { font-size: 0.95em; max-height: 200px; overflow-y: auto; white-space: pre-wrap !important; word-break: break-all; overflow-wrap: break-word; overflow-x: hidden; background-color: #f1f3f5; padding: 10px; border-radius: 4px; border: 1px solid #ced4da; margin: 5px 0; }
-        .card-details ul { list-style-type: disc; max-height: 200px; overflow-y: auto; word-break: break-word; }
+        .card-details pre { font-size: 0.9em; max-height: 180px; overflow-y: auto; white-space: pre-wrap !important; word-break: break-all; overflow-wrap: break-word; overflow-x: hidden; background-color: #f8f9fa; padding: 10px; border-radius: 4px; border: 1px solid #e0e0e0; margin: 5px 0; }
+        .card-details ul { list-style-type: disc; max-height: 180px; overflow-y: auto; word-break: break-word; }
         .no-data { color: #868e96; font-style: italic; }
         .label { font-weight: bold; }
         .prompt-version-info { font-size: 0.8em; color: #6c757d; }
@@ -158,32 +175,30 @@
                     <label for="keywordSearchInput">關鍵字搜尋</label>
                     <input type="text" id="keywordSearchInput" name="search" placeholder="ID, 標題, 摘要, 關鍵字...">
                 </div>
-
                 <div class="filter-group">
                     <label for="sortBySelect">排序依據</label>
                     <select id="sortBySelect" name="sortBy">
                         <option value="importance">評分</option>
                         <option value="published_at">發布時間</option>
                         <option value="source_id">素材編號</option>
-                        <option value="fetched_at">擷取時間</option> </select>
-                </div>
-
-                <div class="filter-group">
-                    <label for="sortOrderSelect">排序順序</label>
-                    <select id="sortOrderSelect" name="sortOrder">
-                        <option value="desc">最新/最重要優先 (降冪)</option>
-                        <option value="asc">最舊/最不重要優先 (升冪)</option>
+                        <option value="fetched_at">擷取時間</option>
                     </select>
                 </div>
                 <div class="filter-group">
-                    <button type="submit">套用篩選與排序</button>
+                    <label for="sortOrderSelect">排序順序</label>
+                    <select id="sortOrderSelect" name="sortOrder">
+                        <option value="desc">優先顯示新的/重要的 (降冪)</option>
+                        <option value="asc">優先顯示舊的/次要的 (升冪)</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <button type="submit">套用</button>
                 </div>
             </form>
         </aside>
 
         <main class="main-content">
             <h1>影片分析儀表板</h1>
-
             <div class="controls">
                 <button id="triggerTextAnalysisBtn">手動觸發文本元數據分析</button>
                 <button id="triggerVideoAnalysisBtn" class="secondary">手動觸發影片內容分析</button>
@@ -194,7 +209,7 @@
                 {{if .Videos}}
                     {{range $index, $video := .Videos}}
                     <div class="video-card">
-                        <div class="card-header" onclick="toggleDetails('details-{{$index}}')">
+                        <div class="card-header" onclick="toggleDetails('details-{{$index}}', this)">
                             <div class="card-title-section">
                                 {{if $video.AnalysisResult}}{{if $video.AnalysisResult.ImportanceScore}}
                                     <span class="rating-badge" title="重要性評級: {{$video.AnalysisResult.ImportanceScore.OverallRating | html}}">
@@ -262,50 +277,38 @@
                         </div>
 
                         <div id="details-{{$index}}" class="card-details">
-                            {{/* 表格中的詳細內容 */}}
-                            <table>
-                                <tr><td><span class="label">主要地點 (TXT):</span></td><td>{{if $video.PrimaryLocation}}{{$video.PrimaryLocation | html}}{{else}}<span class="no-data">無</span>{{end}}</td></tr>
-                                <tr><td><span class="label">分類/主題 (綜合):</span></td><td>
-                                    {{if .AnalysisResult}}{{if .AnalysisResult.ConsolidatedCategories}}
-                                        <ul> {{range .AnalysisResult.ConsolidatedCategories}} <li>{{. | html}}</li> {{end}} </ul>
-                                    {{else}}<span class="no-data">無</span>{{end}}{{else}}
-                                        {{if $video.PrimarySubjects}} <ul>{{range $video.PrimarySubjects}}<li>{{. | html}}</li>{{end}}</ul>
-                                        {{else}}<span class="no-data">N/A</span>{{end}}
-                                    {{end}}
-                                </td></tr>
-                                {{if $video.AnalysisResult}}
-                                    <tr><td><span class="label">短摘要 (AI):</span></td><td><pre>{{if and .AnalysisResult.ShortSummary .AnalysisResult.ShortSummary.Valid .AnalysisResult.ShortSummary.String}}{{.AnalysisResult.ShortSummary.String | html}}{{else}}<span class="no-data">無</span>{{end}}</pre></td></tr>
-                                    <tr><td><span class="label">列點摘要 (AI):</span></td><td><pre>{{if and .AnalysisResult.BulletedSummary .AnalysisResult.BulletedSummary.Valid .AnalysisResult.BulletedSummary.String}}{{.AnalysisResult.BulletedSummary.String | html}}{{else}}<span class="no-data">無</span>{{end}}</pre></td></tr>
-                                    <tr><td><span class="label">BITE (AI):</span></td><td>
-                                        {{if .AnalysisResult.Bites}}
-                                            <ul> {{range .AnalysisResult.Bites}} <li><span class="label">{{.Speaker | html}}:</span> "{{.Quote | html}}"</li> {{end}} </ul>
-                                        {{else}}<span class="no-data">無</span>{{end}}
-                                    </td></tr>
-                                    <tr><td><span class="label">影片中其他地點 (AI):</span></td><td>
-                                        {{if .AnalysisResult.VideoMentionedLocations}}
-                                            <ul> {{range .AnalysisResult.VideoMentionedLocations}} <li>{{. | html}}</li> {{end}} </ul>
-                                        {{else}}<span class="no-data">無</span>{{end}}
-                                    </td></tr>
-                                    <tr><td><span class="label">關鍵字 (AI):</span></td><td>
-                                        {{if .AnalysisResult.Keywords}}
-                                            <ul> {{range .AnalysisResult.Keywords}} <li><span class="label">{{.Category | html}}:</span> {{.Keyword | html}}</li> {{end}} </ul>
-                                        {{else}}<span class="no-data">無</span>{{end}}
-                                    </td></tr>
-                                    <tr><td><span class="label">素材類型 (AI):</span></td><td>{{if and .AnalysisResult.MaterialType .AnalysisResult.MaterialType.Valid .AnalysisResult.MaterialType.String}}{{.AnalysisResult.MaterialType.String | html}}{{else}}<span class="no-data">無</span>{{end}}</td></tr>
-                                    <tr><td><span class="label">相關新聞 (AI):</span></td><td>
-                                        {{if .AnalysisResult.RelatedNews}}
-                                             <ul> {{range .AnalysisResult.RelatedNews}} <li>{{. | html}}</li> {{end}} </ul>
-                                        {{else}}<span class="no-data">無</span>{{end}}
-                                    </td></tr>
-                                    <tr><td colspan="2"><hr style="margin: 10px 0;"></td></tr>
-                                    <tr><td><span class="label">原始逐字稿 (AI):</span></td><td><pre>{{if and .AnalysisResult.Transcript .AnalysisResult.Transcript.Valid .AnalysisResult.Transcript.String}}{{$video.AnalysisResult.Transcript.String | html}}{{else}}<span class="no-data">無</span>{{end}}</pre></td></tr>
-                                    <tr><td><span class="label">原始翻譯 (AI):</span></td><td><pre>{{if and .AnalysisResult.Translation .AnalysisResult.Translation.Valid .AnalysisResult.Translation.String}}{{$video.AnalysisResult.Translation.String | html}}{{else}}<span class="no-data">無</span>{{end}}</pre></td></tr>
-                                    <tr><td><span class="label">原始畫面描述 (AI):</span></td><td><pre>{{if and .AnalysisResult.VisualDescription .AnalysisResult.VisualDescription.Valid .AnalysisResult.VisualDescription.String}}{{$video.AnalysisResult.VisualDescription.String | html}}{{else}}<span class="no-data">無</span>{{end}}</pre></td></tr>
-                                {{else}}
-                                    <tr><td colspan="2"><p class="no-data">影片尚未進行內容分析 (無 AI 分析結果)</p></td></tr>
-                                {{end}}
-                                 <tr><td><span class="label">畫面 (SHOTLIST - TXT):</span></td><td><pre>{{if and $video.ShotlistContent.Valid $video.ShotlistContent.String}}{{$video.ShotlistContent.String | html}}{{else}}<span class="no-data">無</span>{{end}}</pre></td></tr>
-                            </table>
+                            <h3><span class="icon icon-shotlist"></span>畫面 (SHOTLIST - TXT)</h3>
+                            <pre>{{if and $video.ShotlistContent.Valid $video.ShotlistContent.String}}{{$video.ShotlistContent.String | html}}{{else}}<span class="no-data">無</span>{{end}}</pre>
+                            <h3><span class="icon icon-location"></span>主要地點 (TXT)</h3>
+                            <p>{{if $video.PrimaryLocation}}{{$video.PrimaryLocation | html}}{{else}}<span class="no-data">無</span>{{end}}</p>
+                            {{if $video.AnalysisResult}}
+                                <h3><span class="icon icon-summary"></span>短摘要 (AI)</h3>
+                                <pre>{{if and .AnalysisResult.ShortSummary .AnalysisResult.ShortSummary.Valid .AnalysisResult.ShortSummary.String}}{{.AnalysisResult.ShortSummary.String | html}}{{else}}<span class="no-data">無</span>{{end}}</pre>
+                                <h3><span class="icon icon-summary"></span>列點摘要 (AI)</h3>
+                                <pre>{{if and .AnalysisResult.BulletedSummary .AnalysisResult.BulletedSummary.Valid .AnalysisResult.BulletedSummary.String}}{{.AnalysisResult.BulletedSummary.String | html}}{{else}}<span class="no-data">無</span>{{end}}</pre>
+                                <h3><span class="icon icon-bite"></span>BITE (AI)</h3>
+                                {{if .AnalysisResult.Bites}} <ul> {{range .AnalysisResult.Bites}} <li><span class="label">{{.Speaker | html}}:</span> "{{.Quote | html}}"</li> {{end}} </ul> {{else}}<p class="no-data">無</p>{{end}}
+                                <h3><span class="icon icon-location"></span>影片中其他地點 (AI)</h3>
+                                {{if .AnalysisResult.VideoMentionedLocations}} <ul> {{range .AnalysisResult.VideoMentionedLocations}} <li>{{. | html}}</li> {{end}} </ul> {{else}}<p class="no-data">無</p>{{end}}
+                                <h3><span class="icon icon-keywords"></span>關鍵字 (AI)</h3>
+                                {{if .AnalysisResult.Keywords}} <ul> {{range .AnalysisResult.Keywords}} <li><span class="label">{{.Category | html}}:</span> {{.Keyword | html}}</li> {{end}} </ul> {{else}}<p class="no-data">無</p>{{end}}
+                                <h3><span class="icon icon-category"></span>分類/主題 (綜合 - TXT &amp; AI)</h3>
+                                {{if .AnalysisResult.ConsolidatedCategories}} <ul> {{range .AnalysisResult.ConsolidatedCategories}} <li>{{. | html}}</li> {{end}} </ul>
+                                {{else}} {{if $video.PrimarySubjects}} <ul>{{range $video.PrimarySubjects}}<li>{{. | html}}</li>{{end}}</ul> {{else}}<p class="no-data">無</p>{{end}} {{end}}
+                                <h3><span class="icon icon-material"></span>素材類型 (AI)</h3>
+                                <p>{{if and .AnalysisResult.MaterialType .AnalysisResult.MaterialType.Valid .AnalysisResult.MaterialType.String}}{{.AnalysisResult.MaterialType.String | html}}{{else}}<span class="no-data">無</span>{{end}}</p>
+                                <h3><span class="icon icon-news"></span>相關新聞 (AI)</h3>
+                                {{if .AnalysisResult.RelatedNews}} <ul> {{range .AnalysisResult.RelatedNews}} <li>{{. | html}}</li> {{end}} </ul> {{else}}<p class="no-data">無</p>{{end}}
+                                <hr style="margin: 20px 0;">
+                                <h3><span class="icon icon-transcript"></span>原始逐字稿 (AI)</h3>
+                                <pre>{{if and .AnalysisResult.Transcript .AnalysisResult.Transcript.Valid .AnalysisResult.Transcript.String}}{{$video.AnalysisResult.Transcript.String | html}}{{else}}<span class="no-data">無</span>{{end}}</pre>
+                                <h3><span class="icon icon-translation"></span>原始翻譯 (AI)</h3>
+                                <pre>{{if and .AnalysisResult.Translation .AnalysisResult.Translation.Valid .AnalysisResult.Translation.String}}{{$video.AnalysisResult.Translation.String | html}}{{else}}<span class="no-data">無</span>{{end}}</pre>
+                                <h3><span class="icon icon-description"></span>原始畫面描述 (AI)</h3>
+                                <pre>{{if and .AnalysisResult.VisualDescription .AnalysisResult.VisualDescription.Valid .AnalysisResult.VisualDescription.String}}{{$video.AnalysisResult.VisualDescription.String | html}}{{else}}<span class="no-data">無</span>{{end}}</pre>
+                            {{else}}
+                                <p class="no-data">影片尚未進行內容分析 (無 AI 分析結果)</p>
+                            {{end}}
                         </div>
                     </div>
                     {{end}}
@@ -313,26 +316,26 @@
                     <p class="no-data">目前沒有影片數據可顯示。</p>
                 {{end}}
             </div>
-        </div>
+        </main>
+    </div>
 
     <script>
-        function getFlagForLocation(locationString) { /* ... 與之前版本相同 ... */ }
+        function getFlagForLocation(locationString) { /* ... JavaScript 內容與您之前提供的版本相同 ... */ }
+        // ... 其他 JavaScript 函式 displayStatusMessage, triggerAnalysis ...
         console.log("Dashboard JavaScript 開始執行。");
         const textAnalysisBtn = document.getElementById('triggerTextAnalysisBtn');
         const videoAnalysisBtn = document.getElementById('triggerVideoAnalysisBtn');
         const statusMessageContainer = document.getElementById('statusMessageContainer');
         const filterSortForm = document.getElementById('filterSortForm');
 
-        function displayStatusMessage(message, type) { /* ... 與之前版本相同 ... */ }
-        function triggerAnalysis(buttonElement, endpoint, buttonText) { /* ... 與之前版本相同 ... */ }
-
-        if (textAnalysisBtn) { /* ... 與之前版本相同 ... */ }
-        if (videoAnalysisBtn) { /* ... 與之前版本相同 ... */ }
-
-        function toggleDetails(detailsId) {
+        function displayStatusMessage(message, type) { const messageDiv = document.createElement('div'); messageDiv.className = 'status-message status-' + type; messageDiv.textContent = message; statusMessageContainer.appendChild(messageDiv); setTimeout(() => { messageDiv.remove(); }, 7000); }
+        function triggerAnalysis(buttonElement, endpoint, buttonText) { console.log(`按鈕 '${buttonText}' 被點擊！`); const btn = buttonElement; btn.disabled = true; displayStatusMessage(`正在觸發 ${buttonText}，請稍候...`, 'info'); fetch(endpoint, { method: 'POST', headers: {'Content-Type': 'application/json'} }).then(response => { if (!response.ok) { return response.json().then(errData => { throw new Error(errData.error || `HTTP 錯誤！狀態碼: ${response.status}`); }).catch(() => { throw new Error(`HTTP 錯誤！狀態碼: ${response.status}`); }); } return response.json(); }).then(data => { displayStatusMessage(data.message || `${buttonText} 已成功觸發！`, 'success'); }).catch(error => { displayStatusMessage(`錯誤 (${buttonText}): ${error.message}`, 'error'); }).finally(() => { setTimeout(() => { btn.disabled = false; }, 10000); }); }
+        if (textAnalysisBtn) { textAnalysisBtn.addEventListener('click', function() { triggerAnalysis(this, '/manual-text-analyze', '文本元數據分析'); }); } else { console.error("錯誤：找不到 ID 為 'triggerTextAnalysisBtn' 的按鈕！"); }
+        if (videoAnalysisBtn) { videoAnalysisBtn.addEventListener('click', function() { triggerAnalysis(this, '/manual-video-analyze', '影片內容分析'); }); } else { console.error("錯誤：找不到 ID 為 'triggerVideoAnalysisBtn' 的按鈕！"); }
+        
+        function toggleDetails(detailsId, headerElement) { // 傳入 headerElement
             const detailsDiv = document.getElementById(detailsId);
-            const cardHeader = detailsDiv ? detailsDiv.previousElementSibling.previousElementSibling : null; // header is now two siblings up because of summary section
-            const indicator = cardHeader ? cardHeader.querySelector('.expand-indicator') : null;
+            const indicator = headerElement ? headerElement.querySelector('.expand-indicator') : null;
             
             if (detailsDiv) {
                 detailsDiv.classList.toggle('expanded');
@@ -343,32 +346,19 @@
         }
 
         if (filterSortForm) {
-            // 讀取 URL 參數並設定表單預設值
             const urlParams = new URLSearchParams(window.location.search);
             const searchParam = urlParams.get('search');
             const sortByParam = urlParams.get('sortBy');
             const sortOrderParam = urlParams.get('sortOrder');
-
-            if (searchParam) {
-                document.getElementById('keywordSearchInput').value = searchParam;
-            }
-            if (sortByParam) {
-                document.getElementById('sortBySelect').value = sortByParam;
-            }
-            if (sortOrderParam) {
-                document.getElementById('sortOrderSelect').value = sortOrderParam;
-            }
-
+            if (searchParam) { document.getElementById('keywordSearchInput').value = searchParam; }
+            if (sortByParam) { document.getElementById('sortBySelect').value = sortByParam; }
+            if (sortOrderParam) { document.getElementById('sortOrderSelect').value = sortOrderParam; }
             filterSortForm.addEventListener('submit', function(event) {
-                event.preventDefault(); // 防止表單傳統提交
+                event.preventDefault(); 
                 const formData = new FormData(filterSortForm);
                 const params = new URLSearchParams();
-                for (const pair of formData) {
-                    if (pair[1]) { // 只加入有值的參數
-                        params.append(pair[0], pair[1]);
-                    }
-                }
-                window.location.search = params.toString(); // 重新載入頁面並附帶查詢參數
+                for (const pair of formData) { if (pair[1]) { params.append(pair[0], pair[1]); } }
+                window.location.search = params.toString(); 
             });
         }
     </script>
