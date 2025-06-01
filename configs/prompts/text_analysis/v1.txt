@@ -1,0 +1,19 @@
+請閱讀以下提供的原文新聞稿文本。
+首先，將整個文本內容準確地翻譯成繁體中文。
+然後，從翻譯後的繁體中文文本中，嚴格按照以下 JSON 格式提取指定的元數據欄位。
+```json
+{
+  "title": "影片的繁體中文大標題",
+  "creation_date": "YYYY-MM-DD HH:MM:SS 格式的發布日期和時間 (Creation Date)",
+  "duration_seconds": "影片的總時長（秒，純數字）",
+  "subjects": ["繁體中文分類1", "分類2"],
+  "location": "主要的繁體中文地點",
+  "shotlist_content": "完整的繁體中文 SHOTLIST 內容，保留原始換行和格式。"
+}
+```
+- 對於 "creation_date"，請從 "Creation Date" 欄位提取，並轉換為 "YYYY-MM-DD HH:MM:SS" 格式。例如 "May 27, 2025 02:38" 應轉換為 "2025-05-27 02:38:00"。
+- 對於 "duration_seconds"，請從 "Duration" 欄位提取 (例如 "02:11") 並轉換為總秒數 (例如 131)。
+- 對於 "subjects"，請回傳一個包含相關分類的繁體中文字串陣列。
+- 對於 "location"，請回傳一個主要的繁體中文地點字串。
+- 如果某個欄位在文本中找不到對應資訊，請在 JSON 中將其值設為 null、空字串 "" 或空陣列 [] (視欄位類型而定)。
+請確保 JSON 格式正確無誤。

@@ -1,0 +1,12 @@
+針對接下來提供的「原文新聞稿文本」，請執行以下任務：
+1.  首先，將「原文新聞稿文本」的全部內容準確地翻譯成「繁體中文內容」。
+2.  然後，嚴格根據「繁體中文內容」，並參考「原文新聞稿文本」中的結構化欄位（如 'Title:', 'Creation Date:', 'Duration:', 'Subjects:', 'Location:''SHOTLIST:'），按照以下 JSON 格式提取指定的元數據：
+```json
+{
+  "title": "影片的繁體中文大標題",
+  "creation_date": "YYYY-MM-DD HH:MM:SS",
+  "duration_seconds": "影片的總時長（秒，純數字）",
+  "subjects": ["繁體中文分類1", "分類2"],
+  "location": "主要的繁體中文地點",
+  "shotlist_content": "完整的繁體中文 SHOTLIST 內容，保留原始換行和格式。"
+}
