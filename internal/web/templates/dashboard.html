@@ -743,9 +743,6 @@
     </div>
 
     <script>
-        function getFlagForLocation(locationString) { /* ... JavaScript 內容與您之前提供的版本相同 ... */ }
-        // ... 其他 JavaScript 函式 displayStatusMessage, triggerAnalysis ...
-        console.log("Dashboard JavaScript 開始執行。");
         const textAnalysisBtn = document.getElementById('triggerTextAnalysisBtn');
         const videoAnalysisBtn = document.getElementById('triggerVideoAnalysisBtn');
         const statusMessageContainer = document.getElementById('statusMessageContainer');
@@ -763,7 +760,7 @@
             if (detailsDiv) {
                 detailsDiv.classList.toggle('expanded');
                 if (indicator) {
-                    indicator.textContent = detailsDiv.classList.contains('expanded') ? '▲ 收合' : '► 展開';
+                    indicator.textContent = detailsDiv.classList.contains('expanded') ? '▼ 收合' : '▼ 展開';
                 }
             }
         }
