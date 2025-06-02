@@ -43,14 +43,14 @@ type PagingData struct {
 	HasNext     bool
 	PrevPage    int
 	NextPage    int
-	// TotalRecords int // 如果需要顯示總記錄數
 }
 
-// VideoDisplayData (保持不變)
+// VideoDisplayData 更新：加入 CombinedSourceID
 type VideoDisplayData struct {
 	VideoID                  int64
-	SourceName               string
-	SourceID                 string
+	SourceName               string // 保留原始 SourceName
+	SourceID                 string // 保留原始 SourceID
+	CombinedSourceID         string // *** 新增：用於顯示 SourceName(大寫) + SourceID ***
 	NASPath                  string
 	Title                    string
 	AnalysisStatus           models.AnalysisStatus
@@ -207,8 +207,12 @@ func (h *DashboardHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	for _, v := range videos {
 		displayItem := VideoDisplayData{
-			VideoID: v.ID, SourceName: v.SourceName, SourceID: v.SourceID,
-			NASPath: v.NASPath, Title: v.Title.String, AnalysisStatus: v.AnalysisStatus,
+			VideoID:    v.ID,
+			SourceName: v.SourceName, // 保留原始 SourceName
+			SourceID:   v.SourceID,   // 保留原始 SourceID
+			// *** 填充 CombinedSourceID ***
+			CombinedSourceID: fmt.Sprintf("%s%s", strings.ToUpper(v.SourceName), v.SourceID),
+			NASPath:          v.NASPath, Title: v.Title.String, AnalysisStatus: v.AnalysisStatus,
 			AnalysisResult: nil, PublishedAt: v.PublishedAt, FetchedAt: v.FetchedAt,
 			DurationSecs: v.DurationSecs, ShotlistContent: v.ShotlistContent, ViewLink: v.ViewLink,
 			PrimaryLocation: v.Location.String, FlagEmoji: getFlagForLocationGo(v.Location.String),

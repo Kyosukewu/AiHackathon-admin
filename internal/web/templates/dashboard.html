@@ -624,7 +624,7 @@
                         </div>
 
                         <div class="card-identity-meta">
-                            <p><span class="icon icon-id label">素材編號:</span> {{$video.SourceID | html}} (DB ID: {{$video.VideoID}})</p>
+                            <p><span class="icon icon-id label">素材編號:</span> {{$video.CombinedSourceID | html}} (DB ID: {{$video.VideoID}})</p>
                             {{if $video.PublishedAt.Valid}}
                                 <p><span class="icon icon-date label">發布時間:</span> {{$video.PublishedAt.Time.Format "2006-01-02 15:04:05"}}</p>
                             {{else}}
