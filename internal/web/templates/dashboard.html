@@ -620,7 +620,7 @@
                                     <span class="flag-icon" title="主要地點: {{$video.PrimaryLocation | html}}">{{$video.FlagEmoji}}</span>
                                 {{end}}
                             </div>
-                            <span class="expand-indicator">►</span>
+                            <span class="expand-indicator">▼ 展開</span>
                         </div>
 
                         <div class="card-identity-meta">
@@ -760,7 +760,7 @@
             if (detailsDiv) {
                 detailsDiv.classList.toggle('expanded');
                 if (indicator) {
-                    indicator.textContent = detailsDiv.classList.contains('expanded') ? '▼ 收合' : '▼ 展開';
+                    indicator.textContent = detailsDiv.classList.contains('expanded') ? '▲ 收合' : '▼ 展開';
                 }
             }
         }
