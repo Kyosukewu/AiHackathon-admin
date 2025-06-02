@@ -689,10 +689,16 @@
                            {{/* 移除欄位標題前的編號 */}}
                            <h3><span class="icon icon-shotlist"></span>畫面 (SHOTLIST - TXT)</h3>
                            <pre>{{if and $video.ShotlistContent.Valid $video.ShotlistContent.String}}{{$video.ShotlistContent.String | html}}{{else}}<span class="no-data">無</span>{{end}}</pre>
-                           
+                           {{if $video.AnalysisResult}}
+                           <h3><span class="icon icon-description"></span>原始畫面描述 (AI)</h3>
+                               <pre>{{if and .AnalysisResult.VisualDescription .AnalysisResult.VisualDescription.Valid .AnalysisResult.VisualDescription.String}}{{$video.AnalysisResult.VisualDescription.String | html}}{{else}}<span class="no-data">無</span>{{end}}</pre>
+                            {{end}}
                            <h3><span class="icon icon-location"></span>主要地點 (TXT)</h3>
                            <p>{{if $video.PrimaryLocation}}{{$video.PrimaryLocation | html}}{{else}}<span class="no-data">無</span>{{end}}</p>
-                           
+                           {{if $video.AnalysisResult}}
+                           <h3><span class="icon icon-location"></span>影片中其他地點 (AI)</h3>
+                               {{if .AnalysisResult.VideoMentionedLocations}} <ul> {{range .AnalysisResult.VideoMentionedLocations}} <li>{{. | html}}</li> {{end}} </ul> {{else}}<p class="no-data">無</p>{{end}}
+                             {{end}}
                            {{if $video.AnalysisResult}}
                                <h3><span class="icon icon-summary"></span>短摘要 (AI)</h3>
                                <pre>{{if and .AnalysisResult.ShortSummary .AnalysisResult.ShortSummary.Valid .AnalysisResult.ShortSummary.String}}{{.AnalysisResult.ShortSummary.String | html}}{{else}}<span class="no-data">無</span>{{end}}</pre>
@@ -703,9 +709,6 @@
                                <h3><span class="icon icon-bite"></span>BITE (AI)</h3>
                                {{if .AnalysisResult.Bites}} <ul> {{range .AnalysisResult.Bites}} <li><span class="label">{{.Speaker | html}}:</span> "{{.Quote | html}}"</li> {{end}} </ul> {{else}}<p class="no-data">無</p>{{end}}
                                
-                               <h3><span class="icon icon-location"></span>影片中其他地點 (AI)</h3>
-                               {{if .AnalysisResult.VideoMentionedLocations}} <ul> {{range .AnalysisResult.VideoMentionedLocations}} <li>{{. | html}}</li> {{end}} </ul> {{else}}<p class="no-data">無</p>{{end}}
-                               
                                <h3><span class="icon icon-keywords"></span>關鍵字 (AI)</h3>
                                {{if .AnalysisResult.Keywords}} <ul> {{range .AnalysisResult.Keywords}} <li><span class="label">{{.Category | html}}:</span> {{.Keyword | html}}</li> {{end}} </ul> {{else}}<p class="no-data">無</p>{{end}}
                                
@@ -715,20 +718,12 @@
                                
                                <h3><span class="icon icon-material"></span>素材類型 (AI)</h3>
                                <p>{{if and .AnalysisResult.MaterialType .AnalysisResult.MaterialType.Valid .AnalysisResult.MaterialType.String}}{{.AnalysisResult.MaterialType.String | html}}{{else}}<span class="no-data">無</span>{{end}}</p>
-                               
-                               <h3><span class="icon icon-link"></span>一鍵看帶 (TXT)</h3>
-                               <p>{{if $video.ViewLink.Valid}}<a href="{{$video.ViewLink.String}}" target="_blank">觀看影片</a>{{else}}<span class="no-data">無連結</span>{{end}}</p>
-                               
-                               <h3><span class="icon icon-news"></span>相關新聞 (AI)</h3>
-                               {{if .AnalysisResult.RelatedNews}} <ul> {{range .AnalysisResult.RelatedNews}} <li>{{. | html}}</li> {{end}} </ul> {{else}}<p class="no-data">無</p>{{end}}
 
                                <hr style="margin: 20px 0;">
-                               <h3><span class="icon icon-transcript"></span>原始逐字稿 (AI)</h3>
+                               <h3><span class="icon icon-transcript"></span>原文逐字稿 (AI)</h3>
                                <pre>{{if and .AnalysisResult.Transcript .AnalysisResult.Transcript.Valid .AnalysisResult.Transcript.String}}{{$video.AnalysisResult.Transcript.String | html}}{{else}}<span class="no-data">無</span>{{end}}</pre>
-                               <h3><span class="icon icon-translation"></span>原始翻譯 (AI)</h3>
+                               <h3><span class="icon icon-translation"></span>逐字稿翻譯 (AI)</h3>
                                <pre>{{if and .AnalysisResult.Translation .AnalysisResult.Translation.Valid .AnalysisResult.Translation.String}}{{$video.AnalysisResult.Translation.String | html}}{{else}}<span class="no-data">無</span>{{end}}</pre>
-                               <h3><span class="icon icon-description"></span>原始畫面描述 (AI)</h3>
-                               <pre>{{if and .AnalysisResult.VisualDescription .AnalysisResult.VisualDescription.Valid .AnalysisResult.VisualDescription.String}}{{$video.AnalysisResult.VisualDescription.String | html}}{{else}}<span class="no-data">無</span>{{end}}</pre>
                            {{else}}
                                <p class="no-data">影片尚未進行內容分析 (無 AI 分析結果)</p>
                            {{end}}
