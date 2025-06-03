@@ -4,7 +4,6 @@ package models
 import (
 	"encoding/json"
 	"time"
-	// "AiHackathon-admin/internal/models/types" // 如果 JsonNullString 在 types.go 且 types.go 是 package models，則不需此行
 )
 
 // AnalysisResult 對應 analysis_results 資料表

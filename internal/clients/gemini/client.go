@@ -62,7 +62,6 @@ func NewClient(apiKey string, textModelName string, videoModelName string) (*Cli
 // cleanJSONString 清理從 LLM 收到的可能包含雜質的 JSON 字串
 func cleanJSONString(rawResponse string) string {
 	cleaned := strings.TrimSpace(rawResponse)
-	log.Printf("DEBUG: [CleanJSON] Initial raw (first 200): %s", firstNChars(cleaned, 200))
 
 	if strings.HasPrefix(cleaned, "```json") {
 		cleaned = strings.TrimPrefix(cleaned, "```json")
@@ -76,7 +75,6 @@ func cleanJSONString(rawResponse string) string {
 		}
 	}
 	cleaned = strings.TrimSpace(cleaned)
-	log.Printf("DEBUG: [CleanJSON] After markdown removal (first 200): %s", firstNChars(cleaned, 200))
 
 	var potentialJSON string
 	firstBrace := strings.Index(cleaned, "{")
@@ -88,13 +86,10 @@ func cleanJSONString(rawResponse string) string {
 
 	if isObject && (!isArray || (isArray && firstBrace < firstBracket)) {
 		potentialJSON = cleaned[firstBrace : lastBrace+1]
-		log.Printf("DEBUG: [CleanJSON] Extracted object (first 200): %s", firstNChars(potentialJSON, 200))
 	} else if isArray && (!isObject || (isObject && firstBracket < firstBrace)) {
 		potentialJSON = cleaned[firstBracket : lastBracket+1]
-		log.Printf("DEBUG: [CleanJSON] Extracted array (first 200): %s", firstNChars(potentialJSON, 200))
 	} else {
 		potentialJSON = cleaned
-		log.Printf("DEBUG: [CleanJSON] No clear braces/brackets, using (first 200): %s", firstNChars(potentialJSON, 200))
 	}
 	potentialJSON = strings.TrimSpace(potentialJSON)
 
@@ -112,7 +107,6 @@ func cleanJSONString(rawResponse string) string {
 	}
 	finalCleaned := sb.String()
 	finalCleaned = strings.TrimPrefix(finalCleaned, "\uFEFF")
-	log.Printf("DEBUG: [CleanJSON] Final cleaned string before validation (first 200): %s", firstNChars(finalCleaned, 200))
 	return finalCleaned
 }
 

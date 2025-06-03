@@ -188,7 +188,7 @@ func (h *DashboardHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		sortOrder = "desc" // 預設降冪
 	}
 
-	// TODO: 實現分頁邏輯 (limit, offset)
+	// 分頁參數 (暫時固定值)
 	limit := 20 // 暫時固定每頁數量
 	offset := 0
 

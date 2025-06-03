@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	// "AiHackathon-admin/internal/services" // 介面在此檔案定義，不需要直接 import services
 	"encoding/json"
 	"log"
 	"net/http"
@@ -25,7 +24,6 @@ func NewTriggerVideoAnalysisHandler(as VideoContentPipelineRunner) *TriggerVideo
 	if as == nil {
 		log.Panicln("TriggerVideoAnalysisHandler：VideoContentPipelineRunner 不得為空")
 	}
-	log.Println("DEBUG: [TriggerVideoAnalysisHandler] NewTriggerVideoAnalysisHandler called, analyzeService is NOT nil.") // 新增日誌
 	return &TriggerVideoAnalysisHandler{
 		analyzeService: as,
 	}
@@ -54,7 +52,7 @@ func (h *TriggerVideoAnalysisHandler) ServeHTTP(w http.ResponseWriter, r *http.R
 	h.mu.Unlock()
 
 	log.Println("資訊：[TriggerVideoAnalysisHandler] 收到手動觸發影片內容分析請求，準備啟動 goroutine。")
-	// *** 新增日誌：確認 analyzeService 是否為 nil ***
+	// 確認 analyzeService 是否為 nil
 	if h.analyzeService == nil {
 		log.Println("錯誤：[TriggerVideoAnalysisHandler] h.analyzeService 是 nil，無法啟動分析！")
 		// 可以在這裡回傳一個內部錯誤給前端
@@ -64,8 +62,6 @@ func (h *TriggerVideoAnalysisHandler) ServeHTTP(w http.ResponseWriter, r *http.R
 		http.Error(w, "內部伺服器錯誤 (service not initialized)", http.StatusInternalServerError)
 		return
 	}
-	log.Println("DEBUG: [TriggerVideoAnalysisHandler] h.analyzeService is NOT nil, about to start goroutine.")
-	// *** 結束新增日誌 ***
 
 	go func() {
 		defer func() {

@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	// "AiHackathon-admin/internal/services" // 介面在此檔案定義，不需要直接 import services
 	"encoding/json"
 	"log"
 	"net/http"

@@ -207,8 +207,6 @@ func (s *AnalyzeService) analyzeTextFileContent(ctx context.Context, txtFilePath
 		return nil, actualPromptVersion, fmt.Errorf("無法將 TXT 分析回應解析為 JSON (cleaned): %w。查看日誌中的完整 JSON。", err)
 	}
 
-	log.Printf("DEBUG: [AnalyzeService] ParsedTxtData from TXT '%s': Title='%s', CreationDateStr='%s', DurationSecondsRawMessage='%s', Location='%s', SubjectsRawMessage='%s', ShotlistContentLen=%d\n",
-		txtFilePath, parsedData.Title, parsedData.CreationDateStr, string(parsedData.DurationSeconds), parsedData.Location, string(parsedData.Subjects), len(parsedData.ShotlistContent))
 	log.Printf("資訊：[AnalyzeService] TXT 檔案 '%s' Gemini 分析並解析 JSON 成功。\n", txtFilePath)
 	return &parsedData, actualPromptVersion, nil
 }

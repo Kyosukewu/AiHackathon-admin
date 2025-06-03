@@ -1,7 +1,6 @@
 package models
 
 import (
-	// "AiHackathon-admin/internal/models/types" // 如果 types.go 和本檔案在同一個 package models，則不需此行
 	"database/sql"
 	"encoding/json"
 	"time"
