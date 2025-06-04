@@ -63,6 +63,7 @@ func NewClient(apiKey string, textModelName string, videoModelName string) (*Cli
 func cleanJSONString(rawResponse string) string {
 	cleaned := strings.TrimSpace(rawResponse)
 
+	// 移除可能的 markdown 代碼塊標記
 	if strings.HasPrefix(cleaned, "```json") {
 		cleaned = strings.TrimPrefix(cleaned, "```json")
 		if strings.HasSuffix(cleaned, "```") {
@@ -76,6 +77,7 @@ func cleanJSONString(rawResponse string) string {
 	}
 	cleaned = strings.TrimSpace(cleaned)
 
+	// 尋找最外層的 JSON 結構
 	var potentialJSON string
 	firstBrace := strings.Index(cleaned, "{")
 	lastBrace := strings.LastIndex(cleaned, "}")
@@ -93,11 +95,13 @@ func cleanJSONString(rawResponse string) string {
 	}
 	potentialJSON = strings.TrimSpace(potentialJSON)
 
+	// 處理 UTF-8 編碼問題
 	if !utf8.ValidString(potentialJSON) {
 		log.Println("警告：[Gemini Client Clean] 回應包含無效的 UTF-8 字元，嘗試替換...")
 		potentialJSON = strings.ToValidUTF8(potentialJSON, "")
 	}
 
+	// 移除控制字元
 	var sb strings.Builder
 	for _, r := range potentialJSON {
 		if (r >= 0 && r < 9) || (r > 10 && r < 13) || (r > 13 && r < 32) || r == 127 {
@@ -107,6 +111,27 @@ func cleanJSONString(rawResponse string) string {
 	}
 	finalCleaned := sb.String()
 	finalCleaned = strings.TrimPrefix(finalCleaned, "\uFEFF")
+
+	// 嘗試解析和重新格式化 JSON
+	var jsonObj interface{}
+	if err := json.Unmarshal([]byte(finalCleaned), &jsonObj); err != nil {
+		log.Printf("警告：[Gemini Client Clean] 初步 JSON 解析失敗，嘗試進一步清理: %v", err)
+		// 如果解析失敗，嘗試移除可能的非 JSON 字元
+		finalCleaned = strings.Map(func(r rune) rune {
+			if r == '\n' || r == '\r' || r == '\t' {
+				return ' '
+			}
+			return r
+		}, finalCleaned)
+		// 移除多餘的空格
+		finalCleaned = strings.Join(strings.Fields(finalCleaned), " ")
+	} else {
+		// 如果解析成功，重新格式化 JSON
+		if formattedJSON, err := json.MarshalIndent(jsonObj, "", "  "); err == nil {
+			finalCleaned = string(formattedJSON)
+		}
+	}
+
 	return finalCleaned
 }
 

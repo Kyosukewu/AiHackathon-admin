@@ -95,6 +95,21 @@ func (s *MySQLStore) GetAllVideosWithAnalysis(limit int, offset int, searchTerm 
 			args = append(args, likeTerm)
 		}
 	}
+	// 新增：若 sortOrder 為合法 analysis_status，則加上狀態過濾
+	validStatuses := map[string]bool{
+		string(models.StatusPending):             true,
+		string(models.StatusMetadataExtracting):  true,
+		string(models.StatusMetadataExtracted):   true,
+		string(models.StatusTxtAnalysisFailed):   true,
+		string(models.StatusProcessing):          true,
+		string(models.StatusVideoAnalysisFailed): true,
+		string(models.StatusCompleted):           true,
+		string(models.StatusFailed):              true,
+	}
+	if validStatuses[sortOrder] {
+		whereClauses = append(whereClauses, "v.analysis_status = ?")
+		args = append(args, sortOrder)
+	}
 	if len(whereClauses) > 0 {
 		baseQuery += " WHERE " + strings.Join(whereClauses, " AND ")
 	}
@@ -117,6 +132,28 @@ func (s *MySQLStore) GetAllVideosWithAnalysis(limit int, offset int, searchTerm 
 	baseQuery += " LIMIT ? OFFSET ?"
 	args = append(args, limit, offset)
 	log.Printf("DEBUG SQL Query (GetAllVideosWithAnalysis): %s\nArgs: %v\n", baseQuery, args)
+
+	// 新增 debug log：印出所有影片的 id 和 analysis_status
+	debugQuery := "SELECT id, analysis_status FROM videos"
+	debugRows, err := s.db.Query(debugQuery)
+	if err != nil {
+		log.Printf("錯誤：查詢所有影片狀態失敗: %v", err)
+	} else {
+		defer debugRows.Close()
+		log.Println("DEBUG 所有影片狀態:")
+		for debugRows.Next() {
+			var id int64
+			var status string
+			if err := debugRows.Scan(&id, &status); err != nil {
+				log.Printf("錯誤：掃描影片狀態失敗: %v", err)
+				continue
+			}
+			log.Printf("影片 ID: %d, 狀態: %s", id, status)
+		}
+		if err = debugRows.Err(); err != nil {
+			log.Printf("錯誤：處理影片狀態查詢結果集時發生錯誤: %v", err)
+		}
+	}
 
 	rows, err := s.db.Query(baseQuery, args...)
 	if err != nil {

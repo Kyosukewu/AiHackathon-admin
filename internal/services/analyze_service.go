@@ -395,104 +395,94 @@ func (s *AnalyzeService) ExecuteTextAnalysisPipeline() error {
 }
 
 func (s *AnalyzeService) ExecuteVideoContentPipeline() error {
-	log.Println("資訊：[AnalyzeService-VideoPipeline] ExecuteVideoContentPipeline 方法已進入。")
+	log.Println("資訊：[AnalyzeService-VideoPipeline] 開始執行影片內容分析流程...")
 
-	statusToQuery := models.StatusMetadataExtracted
-	log.Printf("資訊：[AnalyzeService-VideoPipeline] 準備從資料庫查詢狀態為 '%s' 的影片...\n", statusToQuery)
-
-	videosToAnalyze, err := s.db.GetVideosPendingContentAnalysis(statusToQuery, 10)
-
-	// *** 新增詳細日誌 ***
+	// 先檢查資料庫中是否有影片
+	videos, _, err := s.db.GetAllVideosWithAnalysis(100, 0, "", "", "")
 	if err != nil {
-		log.Printf("錯誤：[AnalyzeService-VideoPipeline] 呼叫 GetVideosPendingContentAnalysis 時發生錯誤: %v", err)
-		return err
+		return fmt.Errorf("查詢影片失敗: %w", err)
 	}
-	log.Printf("DEBUG：[AnalyzeService-VideoPipeline] GetVideosPendingContentAnalysis 回傳了 %d 個影片。錯誤（如果有的話）: %v\n", len(videosToAnalyze), err)
-	// *** 結束新增日誌 ***
+	log.Printf("資訊：[AnalyzeService-VideoPipeline] 資料庫中共有 %d 個影片", len(videos))
 
-	if len(videosToAnalyze) == 0 {
-		log.Println("資訊：[AnalyzeService-VideoPipeline] 資料庫中沒有找到狀態為 'metadata_extracted' 的影片進行內容分析。流程結束。")
-		return nil
+	// 獲取所有狀態為 metadata_extracted 的影片
+	videos, _, err = s.db.GetAllVideosWithAnalysis(100, 0, "", "", string(models.StatusMetadataExtracted))
+	if err != nil {
+		return fmt.Errorf("查詢待分析影片失敗: %w", err)
 	}
+	log.Printf("資訊：[AnalyzeService-VideoPipeline] 找到 %d 個待分析的影片", len(videos))
 
-	log.Printf("資訊：[AnalyzeService-VideoPipeline] 找到 %d 個影片準備進行內容分析。\n", len(videosToAnalyze))
+	for _, video := range videos {
+		log.Printf("資訊：[AnalyzeService-VideoPipeline] 開始處理影片 ID: %d, SourceID: %s\n", video.ID, video.SourceID)
 
-	var successCount, failCount int
-	for _, video := range videosToAnalyze {
-		log.Printf("資訊：[AnalyzeService-VideoPipeline] 開始處理影片內容分析: %s (ID: %d)\n", video.NASPath, video.ID)
-
-		// 構建影片的完整路徑
-		nasBasePath, _ := filepath.Abs(s.cfg.NAS.VideoPath)
-		// 使用三層目錄結構：/Download/{source_name}/{video_id}/{video_id}.mp4
-		videoAbsolutePath := filepath.Join(nasBasePath, video.SourceName, video.SourceID, video.SourceID+".mp4")
+		// 使用 nas_path 構建影片路徑
+		videoPath := filepath.Join(s.cfg.NAS.VideoPath, video.NASPath)
+		log.Printf("資訊：[AnalyzeService-VideoPipeline] 影片路徑: %s\n", videoPath)
 
 		// 檢查影片檔案是否存在
-		if _, err := os.Stat(videoAbsolutePath); os.IsNotExist(err) {
-			log.Printf("錯誤：[AnalyzeService-VideoPipeline] 影片檔案不存在: %s", videoAbsolutePath)
-			s.db.UpdateVideoAnalysisStatus(video.ID, models.StatusVideoAnalysisFailed,
-				sql.NullTime{Time: time.Now(), Valid: true},
-				sql.NullString{String: "影片檔案不存在: " + videoAbsolutePath, Valid: true})
-			failCount++
+		if _, err := os.Stat(videoPath); os.IsNotExist(err) {
+			log.Printf("錯誤：[AnalyzeService-VideoPipeline] 影片檔案不存在: %s\n", videoPath)
+			// 更新影片狀態為分析失敗
+			if err := s.db.UpdateVideoAnalysisStatus(video.ID, models.StatusVideoAnalysisFailed, sql.NullTime{Time: time.Now(), Valid: true}, sql.NullString{String: fmt.Sprintf("影片檔案不存在: %s", videoPath), Valid: true}); err != nil {
+				log.Printf("錯誤：[AnalyzeService-VideoPipeline] 更新影片狀態失敗: %v\n", err)
+			}
 			continue
 		}
 
-		s.db.UpdateVideoAnalysisStatus(video.ID, models.StatusProcessing, sql.NullTime{Time: time.Now(), Valid: true}, sql.NullString{})
-		tempVideoFileInfo := models.VideoFileInfo{
-			VideoAbsolutePath: videoAbsolutePath,
+		// 更新影片狀態為處理中
+		if err := s.db.UpdateVideoAnalysisStatus(video.ID, models.StatusProcessing, sql.NullTime{Time: time.Now(), Valid: true}, sql.NullString{}); err != nil {
+			log.Printf("錯誤：[AnalyzeService-VideoPipeline] 更新影片狀態失敗: %v\n", err)
+			continue
+		}
+
+		// 使用 Gemini API 分析影片
+		promptText, promptVersion := s.buildPromptForVideo(models.VideoFileInfo{
+			VideoAbsolutePath: videoPath,
 			SourceName:        video.SourceName,
 			OriginalID:        video.SourceID,
-			VideoFileName:     video.SourceID + ".mp4",
-		}
-		tempParsedTxtData := &models.ParsedTxtData{
+			VideoFileName:     filepath.Base(video.NASPath),
+		}, &models.ParsedTxtData{
 			Title:           video.Title.String,
 			ShotlistContent: video.ShotlistContent.String,
 			Subjects:        video.Subjects,
 			Location:        video.Location.String,
-		}
-		promptText, promptVersion := s.buildPromptForVideo(tempVideoFileInfo, tempParsedTxtData)
-		ctxVideo, cancelVideo := context.WithTimeout(context.Background(), 20*time.Minute)
-		videoAnalysisResultData, geminiVideoErr := s.geminiClient.AnalyzeVideo(ctxVideo, videoAbsolutePath, promptText)
-		cancelVideo()
-		currentTime := time.Now()
-		analyzedAtTime := sql.NullTime{Time: currentTime, Valid: true}
-		if geminiVideoErr != nil {
-			log.Printf("錯誤：[AnalyzeService-VideoPipeline] 使用 Gemini API 分析影片內容 %s (ID: %d, Prompt版本: %s) 失敗: %v", video.NASPath, video.ID, promptVersion, geminiVideoErr)
-			errMsgSQL := sql.NullString{String: "影片內容分析失敗: " + geminiVideoErr.Error(), Valid: true}
-			s.db.UpdateVideoAnalysisStatus(video.ID, models.StatusVideoAnalysisFailed, analyzedAtTime, errMsgSQL)
-			failedResult := &models.AnalysisResult{
-				VideoID:       video.ID,
-				ErrorMessage:  &models.JsonNullString{NullString: errMsgSQL},
-				PromptVersion: promptVersion,
-				CreatedAt:     currentTime,
-				UpdatedAt:     currentTime,
+		})
+
+		analysis, err := s.geminiClient.AnalyzeVideo(context.Background(), videoPath, promptText)
+		if err != nil {
+			log.Printf("錯誤：[AnalyzeService-VideoPipeline] 影片分析失敗: %v\n", err)
+			// 更新影片狀態為分析失敗
+			if err := s.db.UpdateVideoAnalysisStatus(video.ID, models.StatusVideoAnalysisFailed, sql.NullTime{Time: time.Now(), Valid: true}, sql.NullString{String: err.Error(), Valid: true}); err != nil {
+				log.Printf("錯誤：[AnalyzeService-VideoPipeline] 更新影片狀態失敗: %v\n", err)
 			}
-			s.db.SaveAnalysisResult(failedResult)
-			failCount++
 			continue
 		}
-		if videoAnalysisResultData == nil {
-			log.Printf("警告：[AnalyzeService-VideoPipeline] GeminiClient 為影片內容 %s (ID: %d) 回傳了空的分析結果。\n", video.NASPath, video.ID)
-			s.db.UpdateVideoAnalysisStatus(video.ID, models.StatusVideoAnalysisFailed, analyzedAtTime,
-				sql.NullString{String: "Gemini影片內容分析回傳空結果", Valid: true})
-			failCount++
+
+		// 設置分析結果的額外資訊
+		analysis.VideoID = video.ID
+		analysis.PromptVersion = promptVersion
+		analysis.CreatedAt = time.Now()
+		analysis.UpdatedAt = time.Now()
+
+		// 保存分析結果
+		if err := s.db.SaveAnalysisResult(analysis); err != nil {
+			log.Printf("錯誤：[AnalyzeService-VideoPipeline] 保存分析結果失敗: %v\n", err)
+			// 更新影片狀態為分析失敗
+			if err := s.db.UpdateVideoAnalysisStatus(video.ID, models.StatusVideoAnalysisFailed, sql.NullTime{Time: time.Now(), Valid: true}, sql.NullString{String: err.Error(), Valid: true}); err != nil {
+				log.Printf("錯誤：[AnalyzeService-VideoPipeline] 更新影片狀態失敗: %v\n", err)
+			}
 			continue
 		}
-		videoAnalysisResultData.VideoID = video.ID
-		videoAnalysisResultData.PromptVersion = promptVersion
-		videoAnalysisResultData.CreatedAt = currentTime
-		videoAnalysisResultData.UpdatedAt = currentTime
-		s.logAnalysisResult(videoAbsolutePath, videoAnalysisResultData)
-		if err := s.db.SaveAnalysisResult(videoAnalysisResultData); err != nil {
-			log.Printf("錯誤：[AnalyzeService-VideoPipeline] 儲存影片 ID %d 的內容分析結果到資料庫失敗: %v", video.ID, err)
-			s.db.UpdateVideoAnalysisStatus(video.ID, models.StatusVideoAnalysisFailed, analyzedAtTime,
-				sql.NullString{String: "儲存影片內容分析結果失敗: " + err.Error(), Valid: true})
-			failCount++
+
+		// 更新影片狀態為分析完成
+		if err := s.db.UpdateVideoAnalysisStatus(video.ID, models.StatusCompleted, sql.NullTime{Time: time.Now(), Valid: true}, sql.NullString{}); err != nil {
+			log.Printf("錯誤：[AnalyzeService-VideoPipeline] 更新影片狀態失敗: %v\n", err)
 			continue
 		}
-		s.db.UpdateVideoAnalysisStatus(video.ID, models.StatusCompleted, analyzedAtTime, sql.NullString{})
-		successCount++
+
+		log.Printf("資訊：[AnalyzeService-VideoPipeline] 影片 ID: %d 分析完成\n", video.ID)
 	}
-	log.Printf("資訊：[AnalyzeService-VideoPipeline] 影片內容分析流程完成。成功: %d, 失敗: %d\n", successCount, failCount)
+
+	log.Println("資訊：[AnalyzeService-VideoPipeline] 影片內容分析流程執行完成")
 	return nil
 }
 

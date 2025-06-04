@@ -8,8 +8,8 @@
   "duration_seconds": "影片的總時長（秒，純數字）",
   "subjects": ["繁體中文分類1", "分類2"],
   "location": "主要的繁體中文地點",
-  "restrictions": "SHOTLIST:底下 RESTRICTIONS 中的原始內容",
-  "tran_restrictions": "source內容得完整繁體中文翻譯",
+  "restrictions": "SHOTLIST 底下 RESTRICTIONS 中的原始內容",
+  "tran_restrictions": "restrictions內容的完整繁體中文翻譯",
   "shotlist_content": "完整的繁體中文 SHOTLIST 內容，保留原始換行和格式。"
 }
 嚴格遵守以下規則：
