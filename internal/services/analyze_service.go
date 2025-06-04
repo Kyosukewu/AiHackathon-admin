@@ -449,9 +449,51 @@ func (s *AnalyzeService) ExecuteVideoContentPipeline() error {
 
 		analysis, err := s.geminiClient.AnalyzeVideo(context.Background(), videoPath, promptText)
 		if err != nil {
-			log.Printf("錯誤：[AnalyzeService-VideoPipeline] 影片分析失敗: %v\n", err)
+			errorMsg := fmt.Sprintf("Gemini API 分析失敗: %v", err)
+			log.Printf("錯誤：[AnalyzeService-VideoPipeline] %s\n", errorMsg)
+
+			// 建立一個包含錯誤訊息的分析結果
+			errorAnalysis := &models.AnalysisResult{
+				VideoID:       video.ID,
+				ErrorMessage:  &models.JsonNullString{NullString: sql.NullString{String: errorMsg, Valid: true}},
+				PromptVersion: promptVersion,
+				CreatedAt:     time.Now(),
+				UpdatedAt:     time.Now(),
+			}
+
+			// 儲存錯誤分析結果
+			if saveErr := s.db.SaveAnalysisResult(errorAnalysis); saveErr != nil {
+				log.Printf("錯誤：[AnalyzeService-VideoPipeline] 儲存錯誤分析結果失敗: %v\n", saveErr)
+			}
+
 			// 更新影片狀態為分析失敗
-			if err := s.db.UpdateVideoAnalysisStatus(video.ID, models.StatusVideoAnalysisFailed, sql.NullTime{Time: time.Now(), Valid: true}, sql.NullString{String: err.Error(), Valid: true}); err != nil {
+			if err := s.db.UpdateVideoAnalysisStatus(video.ID, models.StatusVideoAnalysisFailed, sql.NullTime{Time: time.Now(), Valid: true}, sql.NullString{String: errorMsg, Valid: true}); err != nil {
+				log.Printf("錯誤：[AnalyzeService-VideoPipeline] 更新影片狀態失敗: %v\n", err)
+			}
+			continue
+		}
+
+		// 檢查分析結果是否為空或無效
+		if analysis == nil || (analysis.ShortSummary == nil && analysis.BulletedSummary == nil && analysis.VisualDescription == nil) {
+			errorMsg := "Gemini API 回傳的分析結果為空或無效"
+			log.Printf("錯誤：[AnalyzeService-VideoPipeline] %s\n", errorMsg)
+
+			// 建立一個包含錯誤訊息的分析結果
+			errorAnalysis := &models.AnalysisResult{
+				VideoID:       video.ID,
+				ErrorMessage:  &models.JsonNullString{NullString: sql.NullString{String: errorMsg, Valid: true}},
+				PromptVersion: promptVersion,
+				CreatedAt:     time.Now(),
+				UpdatedAt:     time.Now(),
+			}
+
+			// 儲存錯誤分析結果
+			if saveErr := s.db.SaveAnalysisResult(errorAnalysis); saveErr != nil {
+				log.Printf("錯誤：[AnalyzeService-VideoPipeline] 儲存錯誤分析結果失敗: %v\n", saveErr)
+			}
+
+			// 更新影片狀態為分析失敗
+			if err := s.db.UpdateVideoAnalysisStatus(video.ID, models.StatusVideoAnalysisFailed, sql.NullTime{Time: time.Now(), Valid: true}, sql.NullString{String: errorMsg, Valid: true}); err != nil {
 				log.Printf("錯誤：[AnalyzeService-VideoPipeline] 更新影片狀態失敗: %v\n", err)
 			}
 			continue
@@ -465,9 +507,11 @@ func (s *AnalyzeService) ExecuteVideoContentPipeline() error {
 
 		// 保存分析結果
 		if err := s.db.SaveAnalysisResult(analysis); err != nil {
-			log.Printf("錯誤：[AnalyzeService-VideoPipeline] 保存分析結果失敗: %v\n", err)
+			errorMsg := fmt.Sprintf("保存分析結果失敗: %v", err)
+			log.Printf("錯誤：[AnalyzeService-VideoPipeline] %s\n", errorMsg)
+
 			// 更新影片狀態為分析失敗
-			if err := s.db.UpdateVideoAnalysisStatus(video.ID, models.StatusVideoAnalysisFailed, sql.NullTime{Time: time.Now(), Valid: true}, sql.NullString{String: err.Error(), Valid: true}); err != nil {
+			if err := s.db.UpdateVideoAnalysisStatus(video.ID, models.StatusVideoAnalysisFailed, sql.NullTime{Time: time.Now(), Valid: true}, sql.NullString{String: errorMsg, Valid: true}); err != nil {
 				log.Printf("錯誤：[AnalyzeService-VideoPipeline] 更新影片狀態失敗: %v\n", err)
 			}
 			continue
