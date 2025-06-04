@@ -45,7 +45,7 @@ type PagingData struct {
 	NextPage    int
 }
 
-// VideoDisplayData 更新：加入 CombinedSourceID
+// VideoDisplayData 更新：加入 CombinedSourceID 和 PromptVersion
 type VideoDisplayData struct {
 	VideoID                  int64
 	SourceName               string // 保留原始 SourceName
@@ -66,6 +66,7 @@ type VideoDisplayData struct {
 	PrimarySubjects          []string
 	FlagEmoji                string
 	VideoURL                 string
+	PromptVersion            string // 新增：文本 Prompt 版本
 }
 
 // KeywordDisplay, BiteDisplay, ImportanceScoreDisplay, DisplayableAnalysisResult (保持不變)
@@ -74,8 +75,9 @@ type KeywordDisplay struct {
 	Category string `json:"category"`
 }
 type BiteDisplay struct {
-	Speaker string `json:"speaker"`
-	Quote   string `json:"quote"`
+	TimeLine string `json:"time_line"`
+	Speaker  string `json:"speaker"`
+	Quote    string `json:"quote"`
 }
 type ImportanceScoreDisplay struct {
 	OverallRating     string   `json:"overall_rating"`
@@ -216,7 +218,8 @@ func (h *DashboardHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			AnalysisResult: nil, PublishedAt: v.PublishedAt, FetchedAt: v.FetchedAt,
 			DurationSecs: v.DurationSecs, ShotlistContent: v.ShotlistContent, ViewLink: v.ViewLink,
 			PrimaryLocation: v.Location.String, FlagEmoji: getFlagForLocationGo(v.Location.String),
-			VideoURL: fmt.Sprintf("/media/%s", v.NASPath),
+			VideoURL:      fmt.Sprintf("/media/%s", v.NASPath),
+			PromptVersion: v.PromptVersion,
 		}
 		if v.DurationSecs.Valid {
 			displayItem.FormattedDurationMinutes = v.DurationSecs.Int64 / 60

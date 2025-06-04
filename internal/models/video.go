@@ -62,4 +62,5 @@ type Video struct {
 	AnalysisStatus   AnalysisStatus  `json:"analysis_status"`
 	AnalyzedAt       sql.NullTime    `json:"analyzed_at"`
 	SourceMetadata   json.RawMessage `json:"source_metadata"`
+	PromptVersion    string          `json:"prompt_version"` // 新增：文本 Prompt 版本
 }

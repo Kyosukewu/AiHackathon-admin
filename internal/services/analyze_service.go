@@ -238,8 +238,8 @@ func (s *AnalyzeService) buildPromptForVideo(videoInfo models.VideoFileInfo, txt
 func (s *AnalyzeService) logAnalysisResult(videoPath string, result *models.AnalysisResult) { /* ... */
 }
 
-// ExecuteTextAnalysisPipeline (保持不變)
-func (s *AnalyzeService) ExecuteTextAnalysisPipeline() error { /* ...與您之前的版本相同... */
+// ExecuteTextAnalysisPipeline (修正 ok 的使用)
+func (s *AnalyzeService) ExecuteTextAnalysisPipeline() error {
 	log.Println("資訊：[AnalyzeService-TextPipeline] 開始執行文本元數據分析流程...")
 	videoFileInfos, err := s.scanVideoFiles()
 	if err != nil {
@@ -311,6 +311,7 @@ func (s *AnalyzeService) ExecuteTextAnalysisPipeline() error { /* ...與您之�
 			AnalyzedAt:       sql.NullTime{Time: currentTime, Valid: true},
 			ViewLink:         existingVideo.ViewLink,
 			SourceMetadata:   existingVideo.SourceMetadata,
+			PromptVersion:    s.cfg.Prompts.TextFileAnalysis.CurrentVersion,
 		}
 		if !videoInfo.ModTime.IsZero() && videoInfo.ModTime.After(existingVideo.FetchedAt) {
 			videoToUpdate.FetchedAt = videoInfo.ModTime

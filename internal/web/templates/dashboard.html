@@ -683,6 +683,7 @@
                             {{else}}
                                 <p class="prompt-version-info"><span class="icon icon-prompt label">影片 Prompt 版本:</span> <span class="no-data">N/A</span></p>
                             {{end}}
+                            <p class="prompt-version-info"><span class="icon icon-prompt label">文本 Prompt 版本:</span> {{$video.PromptVersion | html}}</p>
                         </div>
 
                         <div id="details-{{$index}}" class="card-details">
@@ -707,7 +708,17 @@
                                <pre>{{if and .AnalysisResult.BulletedSummary .AnalysisResult.BulletedSummary.Valid .AnalysisResult.BulletedSummary.String}}{{.AnalysisResult.BulletedSummary.String | html}}{{else}}<span class="no-data">無</span>{{end}}</pre>
                            
                                <h3><span class="icon icon-bite"></span>BITE (AI)</h3>
-                               {{if .AnalysisResult.Bites}} <ul> {{range .AnalysisResult.Bites}} <li><span class="label">{{.Speaker | html}}:</span> "{{.Quote | html}}"</li> {{end}} </ul> {{else}}<p class="no-data">無</p>{{end}}
+                               {{if .AnalysisResult.Bites}} 
+                               <ul> 
+                                   {{range .AnalysisResult.Bites}} 
+                                   <li>
+                                       <span class="label">{{.TimeLine | html}}</span>
+                                       <span class="label">{{.Speaker | html}}:</span> 
+                                       "{{.Quote | html}}"
+                                   </li> 
+                                   {{end}} 
+                               </ul> 
+                               {{else}}<p class="no-data">無</p>{{end}}
                                
                                <h3><span class="icon icon-keywords"></span>關鍵字 (AI)</h3>
                                {{if .AnalysisResult.Keywords}} <ul> {{range .AnalysisResult.Keywords}} <li><span class="label">{{.Category | html}}:</span> {{.Keyword | html}}</li> {{end}} </ul> {{else}}<p class="no-data">無</p>{{end}}
