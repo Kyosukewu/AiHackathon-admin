@@ -295,7 +295,23 @@ func (s *AnalyzeService) ExecuteTextAnalysisPipeline() error { /* ...與您之�
 			failCount++
 			continue
 		}
-		videoToUpdate := &models.Video{ID: videoID, SourceName: videoInfo.SourceName, SourceID: videoInfo.OriginalID, NASPath: videoInfo.RelativePath, FetchedAt: existingVideo.FetchedAt, Title: sql.NullString{String: parsedTxtData.Title, Valid: parsedTxtData.Title != ""}, ShotlistContent: models.JsonNullString{NullString: sql.NullString{String: parsedTxtData.ShotlistContent, Valid: parsedTxtData.ShotlistContent != ""}}, Location: sql.NullString{String: parsedTxtData.Location, Valid: parsedTxtData.Location != ""}, Subjects: parsedTxtData.Subjects, AnalysisStatus: models.StatusMetadataExtracted, AnalyzedAt: sql.NullTime{Time: currentTime, Valid: true}, ViewLink: existingVideo.ViewLink, SourceMetadata: existingVideo.SourceMetadata}
+		videoToUpdate := &models.Video{
+			ID:               videoID,
+			SourceName:       videoInfo.SourceName,
+			SourceID:         videoInfo.OriginalID,
+			NASPath:          videoInfo.RelativePath,
+			FetchedAt:        existingVideo.FetchedAt,
+			Title:            sql.NullString{String: parsedTxtData.Title, Valid: parsedTxtData.Title != ""},
+			ShotlistContent:  models.JsonNullString{NullString: sql.NullString{String: parsedTxtData.ShotlistContent, Valid: parsedTxtData.ShotlistContent != ""}},
+			Location:         sql.NullString{String: parsedTxtData.Location, Valid: parsedTxtData.Location != ""},
+			Restrictions:     sql.NullString{String: parsedTxtData.Restrictions, Valid: parsedTxtData.Restrictions != ""},
+			TranRestrictions: sql.NullString{String: parsedTxtData.TranRestrictions, Valid: parsedTxtData.TranRestrictions != ""},
+			Subjects:         parsedTxtData.Subjects,
+			AnalysisStatus:   models.StatusMetadataExtracted,
+			AnalyzedAt:       sql.NullTime{Time: currentTime, Valid: true},
+			ViewLink:         existingVideo.ViewLink,
+			SourceMetadata:   existingVideo.SourceMetadata,
+		}
 		if !videoInfo.ModTime.IsZero() && videoInfo.ModTime.After(existingVideo.FetchedAt) {
 			videoToUpdate.FetchedAt = videoInfo.ModTime
 		}

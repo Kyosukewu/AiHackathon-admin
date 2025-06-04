@@ -71,7 +71,7 @@ func (s *MySQLStore) GetAllVideosWithAnalysis(limit int, offset int, searchTerm 
 			v.id, v.source_name, v.source_id, v.nas_path, v.title, 
 			v.fetched_at, v.published_at, v.duration_secs, v.shotlist_content, v.view_link,
 			v.analysis_status, v.analyzed_at, v.source_metadata,
-			v.subjects, v.location, 
+			v.subjects, v.location, v.restrictions, v.tran_restrictions,
 			ar.video_id, ar.transcript, ar.translation, 
 			ar.short_summary, ar.bulleted_summary, ar.bites, ar.mentioned_locations,
 			ar.importance_score, ar.material_type, ar.related_news,
@@ -130,7 +130,7 @@ func (s *MySQLStore) GetAllVideosWithAnalysis(limit int, offset int, searchTerm 
 		var v models.Video
 		var arTemp models.AnalysisResult
 		var sourceMetadataSQL, subjectsSQL sql.RawBytes
-		var shotlistContentSQL, viewLinkSQL, locationSQL sql.NullString
+		var shotlistContentSQL, viewLinkSQL, locationSQL, restrictionsSQL, tranRestrictionsSQL sql.NullString
 		var arVideoID sql.NullInt64
 		var arTranscriptSQL, arTranslationSQL, arShortSummarySQL, arBulletedSummarySQL, arMaterialTypeSQL, arVisualDescriptionSQL, arErrorMessageSQL, arPromptVersionSQL sql.NullString
 		var arTopicsSQL, arKeywordsSQL, arBitesSQL, arMentionedLocationsSQL, arImportanceScoreSQL, arRelatedNewsSQL sql.RawBytes
@@ -140,7 +140,7 @@ func (s *MySQLStore) GetAllVideosWithAnalysis(limit int, offset int, searchTerm 
 			&v.ID, &v.SourceName, &v.SourceID, &v.NASPath, &v.Title,
 			&v.FetchedAt, &v.PublishedAt, &v.DurationSecs, &shotlistContentSQL, &viewLinkSQL,
 			&v.AnalysisStatus, &v.AnalyzedAt, &sourceMetadataSQL,
-			&subjectsSQL, &locationSQL,
+			&subjectsSQL, &locationSQL, &restrictionsSQL, &tranRestrictionsSQL,
 			&arVideoID, &arTranscriptSQL, &arTranslationSQL, &arShortSummarySQL, &arBulletedSummarySQL,
 			&arBitesSQL, &arMentionedLocationsSQL, &arImportanceScoreSQL, &arMaterialTypeSQL, &arRelatedNewsSQL,
 			&arVisualDescriptionSQL, &arTopicsSQL, &arKeywordsSQL, &arErrorMessageSQL, &arPromptVersionSQL,
@@ -165,6 +165,8 @@ func (s *MySQLStore) GetAllVideosWithAnalysis(limit int, offset int, searchTerm 
 			}
 			v.ShotlistContent = models.JsonNullString{NullString: shotlistContentSQL}
 			v.Location = locationSQL
+			v.Restrictions = restrictionsSQL
+			v.TranRestrictions = tranRestrictionsSQL
 			if viewLinkSQL.Valid {
 				v.ViewLink = viewLinkSQL
 			}
@@ -296,7 +298,7 @@ func (s *MySQLStore) FindOrCreateVideo(video *models.Video) (int64, error) {
 	if queryErr == sql.ErrNoRows {
 		log.Printf("資訊：資料庫中未找到影片 (Source: %s, ID: %s, NAS: %s)，正在新增記錄...\n", video.SourceName, video.SourceID, video.NASPath)
 		log.Printf("DEBUG DB INSERT: Video.Subjects to be inserted: '%s', AnalysisStatus: '%s', AnalyzedAt: %v", string(video.Subjects), video.AnalysisStatus, video.AnalyzedAt)
-		insertQuery := ` INSERT INTO videos ( source_name, source_id, nas_path, title, fetched_at, published_at, duration_secs, shotlist_content, view_link, subjects, location, analysis_status, source_metadata, analyzed_at ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`
+		insertQuery := ` INSERT INTO videos ( source_name, source_id, nas_path, title, fetched_at, published_at, duration_secs, shotlist_content, view_link, subjects, location, restrictions, tran_restrictions, analysis_status, source_metadata, analyzed_at ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`
 		fetchedTime := video.FetchedAt
 		if fetchedTime.IsZero() {
 			fetchedTime = time.Now()
@@ -305,7 +307,7 @@ func (s *MySQLStore) FindOrCreateVideo(video *models.Video) (int64, error) {
 		if status == "" {
 			status = models.StatusPending
 		}
-		res, insertErr := s.db.Exec(insertQuery, video.SourceName, video.SourceID, video.NASPath, video.Title, fetchedTime, video.PublishedAt, video.DurationSecs, video.ShotlistContent, video.ViewLink, video.Subjects, video.Location, status, video.SourceMetadata, video.AnalyzedAt)
+		res, insertErr := s.db.Exec(insertQuery, video.SourceName, video.SourceID, video.NASPath, video.Title, fetchedTime, video.PublishedAt, video.DurationSecs, video.ShotlistContent, video.ViewLink, video.Subjects, video.Location, video.Restrictions, video.TranRestrictions, status, video.SourceMetadata, video.AnalyzedAt)
 		if insertErr != nil {
 			return 0, fmt.Errorf("插入新影片記錄失敗 (Source: %s, ID: %s): %w", video.SourceName, video.SourceID, insertErr)
 		}
@@ -320,12 +322,19 @@ func (s *MySQLStore) FindOrCreateVideo(video *models.Video) (int64, error) {
 	}
 	log.Printf("資訊：資料庫中已存在影片記錄 ID: %d (Source: %s, ID: %s)。正在更新元數據...\n", videoID, video.SourceName, video.SourceID)
 	log.Printf("DEBUG DB UPDATE for VideoID %d: Subjects to be updated: '%s', AnalysisStatus: '%s', AnalyzedAt: '%v'", videoID, string(video.Subjects), video.AnalysisStatus, video.AnalyzedAt)
-	updateQuery := ` UPDATE videos SET title = ?, published_at = ?, duration_secs = ?, shotlist_content = ?, view_link = ?, subjects = ?, location = ?, nas_path = ?, source_metadata = ?, fetched_at = ?, analysis_status = ?, analyzed_at = ? WHERE id = ?;`
-	_, updateErr := s.db.Exec(updateQuery, video.Title, video.PublishedAt, video.DurationSecs, video.ShotlistContent, video.ViewLink, video.Subjects, video.Location, video.NASPath, video.SourceMetadata, video.FetchedAt, video.AnalysisStatus, video.AnalyzedAt, videoID)
+
+	// 確保 analysis_status 不為空
+	status := video.AnalysisStatus
+	if status == "" {
+		status = models.StatusPending
+	}
+
+	updateQuery := ` UPDATE videos SET title = ?, published_at = ?, duration_secs = ?, shotlist_content = ?, view_link = ?, subjects = ?, location = ?, restrictions = ?, tran_restrictions = ?, nas_path = ?, source_metadata = ?, fetched_at = ?, analysis_status = ?, analyzed_at = ? WHERE id = ?;`
+	_, updateErr := s.db.Exec(updateQuery, video.Title, video.PublishedAt, video.DurationSecs, video.ShotlistContent, video.ViewLink, video.Subjects, video.Location, video.Restrictions, video.TranRestrictions, video.NASPath, video.SourceMetadata, video.FetchedAt, status, video.AnalyzedAt, videoID)
 	if updateErr != nil {
 		return 0, fmt.Errorf("更新影片 ID %d 的元數據失敗: %w", videoID, updateErr)
 	}
-	log.Printf("資訊：影片 ID %d 的元數據更新成功 (狀態更新為: %s)。\n", videoID, video.AnalysisStatus)
+	log.Printf("資訊：影片 ID %d 的元數據更新成功 (狀態更新為: %s)。\n", videoID, status)
 	return videoID, nil
 }
 

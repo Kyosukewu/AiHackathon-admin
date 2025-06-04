@@ -33,29 +33,33 @@ type VideoFileInfo struct {
 
 // ParsedTxtData 用於存放從 Gemini 分析 .txt 檔案後回傳的 JSON 數據
 type ParsedTxtData struct {
-	Title           string          `json:"title"`
-	CreationDateStr string          `json:"creation_date"`
-	DurationSeconds json.RawMessage `json:"duration_seconds"` // <--- 已改回 json.RawMessage
-	Subjects        json.RawMessage `json:"subjects"`
-	Location        string          `json:"location"`
-	ShotlistContent string          `json:"shotlist_content"`
+	Title            string          `json:"title"`
+	CreationDateStr  string          `json:"creation_date"`
+	DurationSeconds  json.RawMessage `json:"duration_seconds"` // <--- 已改回 json.RawMessage
+	Subjects         json.RawMessage `json:"subjects"`
+	Location         string          `json:"location"`
+	Restrictions     string          `json:"restrictions"`
+	TranRestrictions string          `json:"tran_restrictions"`
+	ShotlistContent  string          `json:"shotlist_content"`
 }
 
 // Video 結構 (保持不變)
 type Video struct {
-	ID              int64           `json:"id"`
-	SourceName      string          `json:"source_name"`
-	SourceID        string          `json:"source_id"`
-	NASPath         string          `json:"nas_path"`
-	Title           sql.NullString  `json:"title"`
-	FetchedAt       time.Time       `json:"fetched_at"`
-	PublishedAt     sql.NullTime    `json:"published_at"`
-	DurationSecs    sql.NullInt64   `json:"duration_secs"`
-	ShotlistContent JsonNullString  `json:"shotlist_content"` // 來自 types.go (同 package)
-	ViewLink        sql.NullString  `json:"view_link"`
-	Subjects        json.RawMessage `json:"subjects"`
-	Location        sql.NullString  `json:"location"`
-	AnalysisStatus  AnalysisStatus  `json:"analysis_status"`
-	AnalyzedAt      sql.NullTime    `json:"analyzed_at"`
-	SourceMetadata  json.RawMessage `json:"source_metadata"`
+	ID               int64           `json:"id"`
+	SourceName       string          `json:"source_name"`
+	SourceID         string          `json:"source_id"`
+	NASPath          string          `json:"nas_path"`
+	Title            sql.NullString  `json:"title"`
+	FetchedAt        time.Time       `json:"fetched_at"`
+	PublishedAt      sql.NullTime    `json:"published_at"`
+	DurationSecs     sql.NullInt64   `json:"duration_secs"`
+	ShotlistContent  JsonNullString  `json:"shotlist_content"` // 來自 types.go (同 package)
+	ViewLink         sql.NullString  `json:"view_link"`
+	Subjects         json.RawMessage `json:"subjects"`
+	Location         sql.NullString  `json:"location"`
+	Restrictions     sql.NullString  `json:"restrictions"`
+	TranRestrictions sql.NullString  `json:"tran_restrictions"`
+	AnalysisStatus   AnalysisStatus  `json:"analysis_status"`
+	AnalyzedAt       sql.NullTime    `json:"analyzed_at"`
+	SourceMetadata   json.RawMessage `json:"source_metadata"`
 }
