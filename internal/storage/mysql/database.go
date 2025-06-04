@@ -330,8 +330,8 @@ func (s *MySQLStore) FindOrCreateVideo(video *models.Video) (int64, error) {
 		status = models.StatusPending
 	}
 
-	updateQuery := ` UPDATE videos SET title = ?, published_at = ?, duration_secs = ?, shotlist_content = ?, view_link = ?, subjects = ?, location = ?, restrictions = ?, tran_restrictions = ?, nas_path = ?, source_metadata = ?, fetched_at = ?, analysis_status = ?, analyzed_at = ? WHERE id = ?;`
-	_, updateErr := s.db.Exec(updateQuery, video.Title, video.PublishedAt, video.DurationSecs, video.ShotlistContent, video.ViewLink, video.Subjects, video.Location, video.Restrictions, video.TranRestrictions, video.NASPath, video.SourceMetadata, video.FetchedAt, status, video.AnalyzedAt, videoID)
+	updateQuery := ` UPDATE videos SET title = ?, published_at = ?, duration_secs = ?, shotlist_content = ?, view_link = ?, subjects = ?, location = ?, restrictions = ?, tran_restrictions = ?, nas_path = ?, source_metadata = ?, fetched_at = ?, analysis_status = ?, analyzed_at = ?, prompt_version = ? WHERE id = ?;`
+	_, updateErr := s.db.Exec(updateQuery, video.Title, video.PublishedAt, video.DurationSecs, video.ShotlistContent, video.ViewLink, video.Subjects, video.Location, video.Restrictions, video.TranRestrictions, video.NASPath, video.SourceMetadata, video.FetchedAt, status, video.AnalyzedAt, video.PromptVersion, videoID)
 	if updateErr != nil {
 		return 0, fmt.Errorf("更新影片 ID %d 的元數據失敗: %w", videoID, updateErr)
 	}

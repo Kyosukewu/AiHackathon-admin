@@ -62,44 +62,54 @@ func NewAnalyzeService(
 // scanVideoFiles 掃描 NAS 路徑，找到成對的影片檔案和 .txt 描述檔
 func (s *AnalyzeService) scanVideoFiles() ([]models.VideoFileInfo, error) {
 	var videoFileInfos []models.VideoFileInfo
-	nasBasePath, err := filepath.Abs(s.cfg.NAS.VideoPath)
+	downloadPath, err := filepath.Abs(s.cfg.NAS.VideoPath)
 	if err != nil {
-		return nil, fmt.Errorf("無法取得 NAS videoPath 的絕對路徑 '%s': %w", s.cfg.NAS.VideoPath, err)
+		return nil, fmt.Errorf("無法取得 Download 路徑的絕對路徑 '%s': %w", s.cfg.NAS.VideoPath, err)
 	}
-	log.Printf("資訊：[AnalyzeService] 開始掃描影片及 TXT 檔案於路徑: %s (新結構)\n", nasBasePath)
+	log.Printf("資訊：[AnalyzeService] 開始掃描影片及 TXT 檔案於路徑: %s\n", downloadPath)
 	supportedVideoExtensions := map[string]bool{
 		".mp4": true, ".mov": true, ".avi": true, ".mkv": true, ".ts": true, ".flv": true, ".wmv": true,
 	}
 	txtExtension := ".txt"
-	sourceDirs, err := os.ReadDir(nasBasePath)
+
+	// 讀取 Download 目錄下的所有子資料夾
+	sourceDirs, err := os.ReadDir(downloadPath)
 	if err != nil {
-		return nil, fmt.Errorf("[AnalyzeService] 讀取 NAS 根目錄 '%s' 失敗: %w", nasBasePath, err)
+		return nil, fmt.Errorf("[AnalyzeService] 讀取 Download 目錄 '%s' 失敗: %w", downloadPath, err)
 	}
+
 	for _, sourceDirEntry := range sourceDirs {
 		if !sourceDirEntry.IsDir() {
 			continue
 		}
-		sourceName := sourceDirEntry.Name()
-		sourcePath := filepath.Join(nasBasePath, sourceName)
+		sourceName := sourceDirEntry.Name() // 使用第一層子資料夾名稱作為 source
+		sourcePath := filepath.Join(downloadPath, sourceName)
+
+		// 掃描 source 目錄下的所有子資料夾（每個子資料夾代表一個影片ID）
 		videoIDDirs, err := os.ReadDir(sourcePath)
 		if err != nil {
 			log.Printf("警告：[AnalyzeService] 讀取來源目錄 '%s' 失敗: %v\n", sourcePath, err)
 			continue
 		}
+
 		for _, videoIDDirEntry := range videoIDDirs {
 			if !videoIDDirEntry.IsDir() {
 				continue
 			}
 			videoID := videoIDDirEntry.Name()
 			videoIDPath := filepath.Join(sourcePath, videoID)
+
 			var videoFilePath, txtFilePath, videoFileName string
 			var modTime time.Time
-			entriesInVideoIDDir, err := os.ReadDir(videoIDPath)
+
+			// 在影片ID目錄下尋找影片和 TXT 檔案
+			entries, err := os.ReadDir(videoIDPath)
 			if err != nil {
 				log.Printf("警告：[AnalyzeService] 讀取影片ID目錄 '%s' 失敗: %v\n", videoIDPath, err)
 				continue
 			}
-			for _, entry := range entriesInVideoIDDir {
+
+			for _, entry := range entries {
 				if entry.IsDir() {
 					continue
 				}
@@ -123,19 +133,40 @@ func (s *AnalyzeService) scanVideoFiles() ([]models.VideoFileInfo, error) {
 					}
 				}
 			}
+
 			if videoFilePath != "" && txtFilePath != "" {
-				relativePath, _ := filepath.Rel(nasBasePath, videoFilePath)
-				videoFileInfos = append(videoFileInfos, models.VideoFileInfo{VideoAbsolutePath: videoFilePath, TextFilePath: txtFilePath, RelativePath: relativePath, SourceName: sourceName, OriginalID: videoID, VideoFileName: videoFileName, ModTime: modTime})
-				log.Printf("資訊：[AnalyzeService] 找到匹配的影片和TXT: V: %s, T: %s (來源: %s, ID: %s)\n", videoFileName, filepath.Base(txtFilePath), sourceName, videoID)
-			} else {
-				if videoFilePath == "" && txtFilePath != "" {
-					log.Printf("警告：[AnalyzeService] 影片ID目錄 '%s' 中只找到 TXT 檔案。\n", videoIDPath)
-				} else if videoFilePath != "" && txtFilePath == "" {
-					log.Printf("警告：[AnalyzeService] 影片ID目錄 '%s' 中只找到影片檔案。\n", videoIDPath)
-				}
+				relativePath, _ := filepath.Rel(downloadPath, videoFilePath)
+				videoFileInfos = append(videoFileInfos, models.VideoFileInfo{
+					VideoAbsolutePath: videoFilePath,
+					TextFilePath:      txtFilePath,
+					RelativePath:      relativePath,
+					SourceName:        sourceName, // 使用第一層子資料夾名稱作為 source
+					OriginalID:        videoID,    // 使用第二層子資料夾名稱作為 ID
+					VideoFileName:     videoFileName,
+					ModTime:           modTime,
+				})
+				log.Printf("資訊：[AnalyzeService] 找到匹配的影片和TXT: V: %s, T: %s (來源: %s, ID: %s)\n",
+					videoFileName, filepath.Base(txtFilePath), sourceName, videoID)
+			} else if txtFilePath != "" {
+				// 只有 TXT 檔案的情況
+				relativePath, _ := filepath.Rel(downloadPath, txtFilePath)
+				videoFileInfos = append(videoFileInfos, models.VideoFileInfo{
+					VideoAbsolutePath: "", // 空字串表示沒有影片檔案
+					TextFilePath:      txtFilePath,
+					RelativePath:      relativePath,
+					SourceName:        sourceName,
+					OriginalID:        videoID,
+					VideoFileName:     "", // 空字串表示沒有影片檔案
+					ModTime:           modTime,
+				})
+				log.Printf("資訊：[AnalyzeService] 找到只有 TXT 檔案的記錄: T: %s (來源: %s, ID: %s)\n",
+					filepath.Base(txtFilePath), sourceName, videoID)
+			} else if videoFilePath != "" {
+				log.Printf("警告：[AnalyzeService] 影片ID目錄 '%s' 中只找到影片檔案。\n", videoIDPath)
 			}
 		}
 	}
+
 	log.Printf("資訊：[AnalyzeService] 掃描完成，共找到 %d 組有效的影片/TXT 配對。\n", len(videoFileInfos))
 	return videoFileInfos, nil
 }
@@ -389,12 +420,35 @@ func (s *AnalyzeService) ExecuteVideoContentPipeline() error {
 	var successCount, failCount int
 	for _, video := range videosToAnalyze {
 		log.Printf("資訊：[AnalyzeService-VideoPipeline] 開始處理影片內容分析: %s (ID: %d)\n", video.NASPath, video.ID)
-		// ... (後續的影片分析邏輯) ...
+
+		// 構建影片的完整路徑
 		nasBasePath, _ := filepath.Abs(s.cfg.NAS.VideoPath)
-		videoAbsolutePath := filepath.Join(nasBasePath, video.NASPath)
+		// 使用三層目錄結構：/Download/{source_name}/{video_id}/{video_id}.mp4
+		videoAbsolutePath := filepath.Join(nasBasePath, video.SourceName, video.SourceID, video.SourceID+".mp4")
+
+		// 檢查影片檔案是否存在
+		if _, err := os.Stat(videoAbsolutePath); os.IsNotExist(err) {
+			log.Printf("錯誤：[AnalyzeService-VideoPipeline] 影片檔案不存在: %s", videoAbsolutePath)
+			s.db.UpdateVideoAnalysisStatus(video.ID, models.StatusVideoAnalysisFailed,
+				sql.NullTime{Time: time.Now(), Valid: true},
+				sql.NullString{String: "影片檔案不存在: " + videoAbsolutePath, Valid: true})
+			failCount++
+			continue
+		}
+
 		s.db.UpdateVideoAnalysisStatus(video.ID, models.StatusProcessing, sql.NullTime{Time: time.Now(), Valid: true}, sql.NullString{})
-		tempVideoFileInfo := models.VideoFileInfo{VideoAbsolutePath: videoAbsolutePath, SourceName: video.SourceName, OriginalID: video.SourceID, VideoFileName: filepath.Base(video.NASPath)}
-		tempParsedTxtData := &models.ParsedTxtData{Title: video.Title.String, ShotlistContent: video.ShotlistContent.String, Subjects: video.Subjects, Location: video.Location.String}
+		tempVideoFileInfo := models.VideoFileInfo{
+			VideoAbsolutePath: videoAbsolutePath,
+			SourceName:        video.SourceName,
+			OriginalID:        video.SourceID,
+			VideoFileName:     video.SourceID + ".mp4",
+		}
+		tempParsedTxtData := &models.ParsedTxtData{
+			Title:           video.Title.String,
+			ShotlistContent: video.ShotlistContent.String,
+			Subjects:        video.Subjects,
+			Location:        video.Location.String,
+		}
 		promptText, promptVersion := s.buildPromptForVideo(tempVideoFileInfo, tempParsedTxtData)
 		ctxVideo, cancelVideo := context.WithTimeout(context.Background(), 20*time.Minute)
 		videoAnalysisResultData, geminiVideoErr := s.geminiClient.AnalyzeVideo(ctxVideo, videoAbsolutePath, promptText)
@@ -405,14 +459,21 @@ func (s *AnalyzeService) ExecuteVideoContentPipeline() error {
 			log.Printf("錯誤：[AnalyzeService-VideoPipeline] 使用 Gemini API 分析影片內容 %s (ID: %d, Prompt版本: %s) 失敗: %v", video.NASPath, video.ID, promptVersion, geminiVideoErr)
 			errMsgSQL := sql.NullString{String: "影片內容分析失敗: " + geminiVideoErr.Error(), Valid: true}
 			s.db.UpdateVideoAnalysisStatus(video.ID, models.StatusVideoAnalysisFailed, analyzedAtTime, errMsgSQL)
-			failedResult := &models.AnalysisResult{VideoID: video.ID, ErrorMessage: &models.JsonNullString{NullString: errMsgSQL}, PromptVersion: promptVersion, CreatedAt: currentTime, UpdatedAt: currentTime}
+			failedResult := &models.AnalysisResult{
+				VideoID:       video.ID,
+				ErrorMessage:  &models.JsonNullString{NullString: errMsgSQL},
+				PromptVersion: promptVersion,
+				CreatedAt:     currentTime,
+				UpdatedAt:     currentTime,
+			}
 			s.db.SaveAnalysisResult(failedResult)
 			failCount++
 			continue
 		}
 		if videoAnalysisResultData == nil {
 			log.Printf("警告：[AnalyzeService-VideoPipeline] GeminiClient 為影片內容 %s (ID: %d) 回傳了空的分析結果。\n", video.NASPath, video.ID)
-			s.db.UpdateVideoAnalysisStatus(video.ID, models.StatusVideoAnalysisFailed, analyzedAtTime, sql.NullString{String: "Gemini影片內容分析回傳空結果", Valid: true})
+			s.db.UpdateVideoAnalysisStatus(video.ID, models.StatusVideoAnalysisFailed, analyzedAtTime,
+				sql.NullString{String: "Gemini影片內容分析回傳空結果", Valid: true})
 			failCount++
 			continue
 		}
@@ -423,7 +484,8 @@ func (s *AnalyzeService) ExecuteVideoContentPipeline() error {
 		s.logAnalysisResult(videoAbsolutePath, videoAnalysisResultData)
 		if err := s.db.SaveAnalysisResult(videoAnalysisResultData); err != nil {
 			log.Printf("錯誤：[AnalyzeService-VideoPipeline] 儲存影片 ID %d 的內容分析結果到資料庫失敗: %v", video.ID, err)
-			s.db.UpdateVideoAnalysisStatus(video.ID, models.StatusVideoAnalysisFailed, analyzedAtTime, sql.NullString{String: "儲存影片內容分析結果失敗: " + err.Error(), Valid: true})
+			s.db.UpdateVideoAnalysisStatus(video.ID, models.StatusVideoAnalysisFailed, analyzedAtTime,
+				sql.NullString{String: "儲存影片內容分析結果失敗: " + err.Error(), Valid: true})
 			failCount++
 			continue
 		}
