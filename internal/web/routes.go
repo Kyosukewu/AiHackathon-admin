@@ -45,6 +45,10 @@ func SetupRouter(appConfig *config.Config, db handlers.DBStore, analyzeService *
 	triggerVideoAnalysisHandler := handlers.NewTriggerVideoAnalysisHandler(analyzeService)
 	mux.Handle("/manual-video-analyze", triggerVideoAnalysisHandler)
 
+	// 匯出處理器
+	exportHandler := handlers.NewExportHandler(db)
+	mux.Handle("/export", exportHandler)
+
 	// --- 新增：影片串流服務路由 ---
 	videoHandler, err := handlers.NewVideoHandler(appConfig.NAS) // 使用 appConfig.NAS
 	if err != nil {

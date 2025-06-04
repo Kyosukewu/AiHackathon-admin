@@ -596,6 +596,7 @@
             <div class="controls">
                 <button id="triggerTextAnalysisBtn">手動觸發文本元數據分析</button>
                 <button id="triggerVideoAnalysisBtn" class="secondary">手動觸發影片內容分析</button>
+                <button id="exportExcelBtn" class="secondary">匯出Excel</button>
                 <div id="statusMessageContainer"></div>
             </div>
 
@@ -751,41 +752,118 @@
     <script>
         const textAnalysisBtn = document.getElementById('triggerTextAnalysisBtn');
         const videoAnalysisBtn = document.getElementById('triggerVideoAnalysisBtn');
+        const exportExcelBtn = document.getElementById('exportExcelBtn');
         const statusMessageContainer = document.getElementById('statusMessageContainer');
         const filterSortForm = document.getElementById('filterSortForm');
 
-        function displayStatusMessage(message, type) { const messageDiv = document.createElement('div'); messageDiv.className = 'status-message status-' + type; messageDiv.textContent = message; statusMessageContainer.appendChild(messageDiv); setTimeout(() => { messageDiv.remove(); }, 7000); }
-        function triggerAnalysis(buttonElement, endpoint, buttonText) { console.log(`按鈕 '${buttonText}' 被點擊！`); const btn = buttonElement; btn.disabled = true; displayStatusMessage(`正在觸發 ${buttonText}，請稍候...`, 'info'); fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' } }).then(response => { if (!response.ok) { return response.json().then(errData => { throw new Error(errData.error || `HTTP 錯誤！狀態碼: ${response.status}`); }).catch(() => { throw new Error(`HTTP 錯誤！狀態碼: ${response.status}`); }); } return response.json(); }).then(data => { displayStatusMessage(data.message || `${buttonText} 已成功觸發！`, 'success'); }).catch(error => { displayStatusMessage(`錯誤 (${buttonText}): ${error.message}`, 'error'); }).finally(() => { setTimeout(() => { btn.disabled = false; }, 10000); }); }
-        if (textAnalysisBtn) { textAnalysisBtn.addEventListener('click', function () { triggerAnalysis(this, '/manual-text-analyze', '文本元數據分析'); }); } else { console.error("錯誤：找不到 ID 為 'triggerTextAnalysisBtn' 的按鈕！"); }
-        if (videoAnalysisBtn) { videoAnalysisBtn.addEventListener('click', function () { triggerAnalysis(this, '/manual-video-analyze', '影片內容分析'); }); } else { console.error("錯誤：找不到 ID 為 'triggerVideoAnalysisBtn' 的按鈕！"); }
-
-        function toggleDetails(detailsId, headerElement) { // 傳入 headerElement
-            const detailsDiv = document.getElementById(detailsId);
-            const indicator = headerElement ? headerElement.querySelector('.expand-indicator') : null;
-
-            if (detailsDiv) {
-                detailsDiv.classList.toggle('expanded');
-                if (indicator) {
-                    indicator.textContent = detailsDiv.classList.contains('expanded') ? '▲ 收合' : '▼ 展開';
-                }
-            }
+        function displayStatusMessage(message, type) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'status-message status-' + type;
+            messageDiv.textContent = message;
+            statusMessageContainer.appendChild(messageDiv);
+            setTimeout(() => {
+                messageDiv.remove();
+            }, 7000);
         }
 
-        if (filterSortForm) {
-            const urlParams = new URLSearchParams(window.location.search);
-            const searchParam = urlParams.get('search');
-            const sortByParam = urlParams.get('sortBy');
-            const sortOrderParam = urlParams.get('sortOrder');
-            if (searchParam) { document.getElementById('keywordSearchInput').value = searchParam; }
-            if (sortByParam) { document.getElementById('sortBySelect').value = sortByParam; }
-            if (sortOrderParam) { document.getElementById('sortOrderSelect').value = sortOrderParam; }
-            filterSortForm.addEventListener('submit', function (event) {
-                event.preventDefault();
-                const formData = new FormData(filterSortForm);
-                const params = new URLSearchParams();
-                for (const pair of formData) { if (pair[1]) { params.append(pair[0], pair[1]); } }
-                window.location.search = params.toString();
+        function triggerAnalysis(buttonElement, endpoint, buttonText) {
+            console.log(`按鈕 '${buttonText}' 被點擊！`);
+            const btn = buttonElement;
+            btn.disabled = true;
+            displayStatusMessage(`正在觸發 ${buttonText}，請稍候...`, 'info');
+            fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(errData => {
+                        throw new Error(errData.error || `HTTP 錯誤！狀態碼: ${response.status}`);
+                    }).catch(() => {
+                        throw new Error(`HTTP 錯誤！狀態碼: ${response.status}`);
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                displayStatusMessage(data.message || `${buttonText} 已成功觸發！`, 'success');
+            })
+            .catch(error => {
+                displayStatusMessage(`錯誤 (${buttonText}): ${error.message}`, 'error');
+            })
+            .finally(() => {
+                setTimeout(() => {
+                    btn.disabled = false;
+                }, 10000);
             });
+        }
+
+        function exportToExcel() {
+            const btn = exportExcelBtn;
+            btn.disabled = true;
+            displayStatusMessage('正在準備匯出 Excel，請稍候...', 'info');
+
+            // 獲取當前的篩選和排序參數
+            const searchTerm = document.getElementById('keywordSearchInput').value;
+            const sortBy = document.getElementById('sortBySelect').value;
+            const sortOrder = document.getElementById('sortOrderSelect').value;
+
+            // 構建 URL，包含篩選和排序參數
+            const url = `/export?search=${encodeURIComponent(searchTerm)}&sortBy=${encodeURIComponent(sortBy)}&sortOrder=${encodeURIComponent(sortOrder)}`;
+
+            // 發送請求並下載檔案
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP 錯誤！狀態碼: ${response.status}`);
+                    }
+                    return response.blob();
+                })
+                .then(blob => {
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `影片分析資料_${new Date().toISOString().split('T')[0]}.csv`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                    displayStatusMessage('匯出成功！', 'success');
+                })
+                .catch(error => {
+                    displayStatusMessage(`匯出失敗: ${error.message}`, 'error');
+                })
+                .finally(() => {
+                    btn.disabled = false;
+                });
+        }
+
+        // 綁定事件處理器
+        textAnalysisBtn.addEventListener('click', () => triggerAnalysis(textAnalysisBtn, '/manual-text-analyze', '文本元數據分析'));
+        videoAnalysisBtn.addEventListener('click', () => triggerAnalysis(videoAnalysisBtn, '/manual-video-analyze', '影片內容分析'));
+        exportExcelBtn.addEventListener('click', exportToExcel);
+
+        // 篩選和排序表單提交處理
+        filterSortForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            const params = new URLSearchParams(formData);
+            window.location.href = `/dashboard?${params.toString()}`;
+        });
+
+        // 展開/收合卡片詳情
+        function toggleDetails(detailsId, headerElement) {
+            const details = document.getElementById(detailsId);
+            const expandIndicator = headerElement.querySelector('.expand-indicator');
+            if (details.classList.contains('expanded')) {
+                details.classList.remove('expanded');
+                expandIndicator.textContent = '▼ 展開';
+            } else {
+                details.classList.add('expanded');
+                expandIndicator.textContent = '▲ 收合';
+            }
         }
     </script>
 </body>
