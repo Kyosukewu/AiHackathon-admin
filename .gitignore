@@ -1,7 +1,66 @@
-/.venv
-/venv
-/Download
-/.env
+# Go 相關
+/bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+go.work
+app
+
+# 環境相關
+/.venv/
+/venv/
+.env
+.env.*
+!.env.sample
+
+# 配置檔案
 /configs/config.yaml
-/debug
-main
+/configs/prompts/**/*.txt
+/configs/prompts/**/*.json
+
+# 下載和暫存檔案
+/Download/
+/static/
+/tmp/
+*.tmp
+*.temp
+
+# 日誌檔案
+*.log
+/debug/
+/logs/
+
+# 編輯器和 IDE 相關
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# 編譯和建置相關
+/build/
+/dist/
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+
+# 資料庫相關
+*.db
+*.sqlite
+*.sqlite3
+
+# 其他
+*.bak
+*.backup
+*.orig
+*.rej
+*.patch
+*.diff
