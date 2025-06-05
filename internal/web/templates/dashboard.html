@@ -557,6 +557,18 @@
         .icon-rating::before {
             content: "⭐";
         }
+
+        .info-row {
+            margin-bottom: 10px;
+        }
+
+        .info-label {
+            font-weight: bold;
+        }
+
+        .info-value {
+            margin-left: 10px;
+        }
     </style>
 </head>
 
@@ -632,6 +644,18 @@
                                 <p><span class="icon icon-date label">發布時間:</span> <span class="no-data">N/A</span></p>
                             {{end}}
                             <p><span class="icon icon-duration label">影片長度:</span> {{if $video.DurationSecs.Valid}}{{printf "%02d:%02d" .FormattedDurationMinutes .FormattedDurationSeconds}}{{else}}<span class="no-data">N/A</span>{{end}}</p>
+                            <div class="info-row">
+                                <span class="info-label">檔案路徑：</span>
+                                <span class="info-value">{{.FilePath}}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">限制條件：</span>
+                                <span class="info-value">{{.Restrictions}}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">轉檔限制：</span>
+                                <span class="info-value">{{.TranRestrictions}}</span>
+                            </div>
                         </div>
 
                         <div class="card-summary-section">

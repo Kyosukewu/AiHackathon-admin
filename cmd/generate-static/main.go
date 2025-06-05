@@ -104,43 +104,97 @@ func convertToDisplayData(videos []models.Video, analysisResults []models.Analys
 		}
 	}
 
-	var displayData []handlers.VideoDisplayData
+	displayData := make([]handlers.VideoDisplayData, 0, len(videos))
 	for _, video := range videos {
-		// 轉換為顯示格式
-		display := handlers.VideoDisplayData{
-			VideoID:          video.ID,
-			SourceName:       video.SourceName,
-			SourceID:         video.SourceID,
-			CombinedSourceID: fmt.Sprintf("%s(%s)", strings.ToUpper(video.SourceName), video.SourceID),
-			NASPath:          video.NASPath,
-			Title:            video.Title.String,
-			AnalysisStatus:   video.AnalysisStatus,
-			PublishedAt:      video.PublishedAt,
-			FetchedAt:        video.FetchedAt,
-			DurationSecs:     video.DurationSecs,
-			ShotlistContent:  video.ShotlistContent,
-			ViewLink:         video.ViewLink,
-			PromptVersion:    video.PromptVersion,
+		// 計算格式化後的時長
+		var formattedMinutes, formattedSeconds int64
+		if video.DurationSecs.Valid {
+			formattedMinutes = video.DurationSecs.Int64 / 60
+			formattedSeconds = video.DurationSecs.Int64 % 60
 		}
 
-		// 計算時長
-		if video.DurationSecs.Valid {
-			display.FormattedDurationMinutes = video.DurationSecs.Int64 / 60
-			display.FormattedDurationSeconds = video.DurationSecs.Int64 % 60
+		// 獲取分析結果
+		analysisResult := analysisMap[video.ID]
+
+		// 創建顯示數據
+		display := handlers.VideoDisplayData{
+			VideoID:                  video.ID,
+			SourceName:               video.SourceName,
+			SourceID:                 video.SourceID,
+			CombinedSourceID:         fmt.Sprintf("%s(%s)", strings.ToUpper(video.SourceName), video.SourceID),
+			NASPath:                  video.NASPath,
+			Title:                    video.Title.String,
+			AnalysisStatus:           video.AnalysisStatus,
+			PublishedAt:              video.PublishedAt,
+			FetchedAt:                video.FetchedAt,
+			DurationSecs:             video.DurationSecs,
+			FormattedDurationMinutes: formattedMinutes,
+			FormattedDurationSeconds: formattedSeconds,
+			ShotlistContent:          video.ShotlistContent,
+			ViewLink:                 video.ViewLink,
+			PromptVersion:            video.PromptVersion,
+			FilePath:                 video.NASPath,
+			Restrictions:             video.Restrictions.String,
+			TranRestrictions:         video.TranRestrictions.String,
 		}
 
 		// 處理分析結果
-		if result, ok := analysisMap[video.ID]; ok {
-			display.AnalysisResult = convertAnalysisResult(result)
-		}
+		if analysisResult != nil {
+			// 解析 json.RawMessage 欄位
+			var (
+				consolidatedCategories []string
+				mentionedLocations     []string
+				keywords               []handlers.KeywordDisplay
+				bites                  []handlers.BiteDisplay
+				importanceScore        *handlers.ImportanceScoreDisplay
+				relatedNews            []string
+			)
 
-		// 處理位置和主題
-		if display.AnalysisResult != nil && len(display.AnalysisResult.VideoMentionedLocations) > 0 {
-			display.PrimaryLocation = display.AnalysisResult.VideoMentionedLocations[0]
-			display.FlagEmoji = getFlagForLocation(display.PrimaryLocation)
-		}
-		if display.AnalysisResult != nil && len(display.AnalysisResult.ConsolidatedCategories) > 0 {
-			display.PrimarySubjects = display.AnalysisResult.ConsolidatedCategories
+			if analysisResult.Topics != nil && len(analysisResult.Topics) > 0 {
+				_ = json.Unmarshal(analysisResult.Topics, &consolidatedCategories)
+			}
+			if analysisResult.MentionedLocations != nil && len(analysisResult.MentionedLocations) > 0 {
+				_ = json.Unmarshal(analysisResult.MentionedLocations, &mentionedLocations)
+			}
+			if analysisResult.Keywords != nil && len(analysisResult.Keywords) > 0 {
+				_ = json.Unmarshal(analysisResult.Keywords, &keywords)
+			}
+			if analysisResult.Bites != nil && len(analysisResult.Bites) > 0 {
+				_ = json.Unmarshal(analysisResult.Bites, &bites)
+			}
+			if analysisResult.ImportanceScore != nil && len(analysisResult.ImportanceScore) > 0 {
+				_ = json.Unmarshal(analysisResult.ImportanceScore, &importanceScore)
+			}
+			if analysisResult.RelatedNews != nil && len(analysisResult.RelatedNews) > 0 {
+				_ = json.Unmarshal(analysisResult.RelatedNews, &relatedNews)
+			}
+
+			display.AnalysisResult = &handlers.DisplayableAnalysisResult{
+				Transcript:              analysisResult.Transcript,
+				Translation:             analysisResult.Translation,
+				ShortSummary:            analysisResult.ShortSummary,
+				BulletedSummary:         analysisResult.BulletedSummary,
+				VisualDescription:       analysisResult.VisualDescription,
+				MaterialType:            analysisResult.MaterialType,
+				ConsolidatedCategories:  consolidatedCategories,
+				VideoMentionedLocations: mentionedLocations,
+				Keywords:                keywords,
+				Bites:                   bites,
+				ImportanceScore:         importanceScore,
+				RelatedNews:             relatedNews,
+				ErrorMessage:            analysisResult.ErrorMessage,
+				PromptVersion:           analysisResult.PromptVersion,
+				AnalysisCreatedAt:       analysisResult.CreatedAt,
+			}
+
+			// 處理位置和主題
+			if len(mentionedLocations) > 0 {
+				display.PrimaryLocation = mentionedLocations[0]
+				display.FlagEmoji = getFlagForLocation(display.PrimaryLocation)
+			}
+			if len(consolidatedCategories) > 0 {
+				display.PrimarySubjects = consolidatedCategories
+			}
 		}
 
 		// 設定影片 URL
@@ -148,71 +202,7 @@ func convertToDisplayData(videos []models.Video, analysisResults []models.Analys
 
 		displayData = append(displayData, display)
 	}
-
 	return displayData
-}
-
-func convertAnalysisResult(result *models.AnalysisResult) *handlers.DisplayableAnalysisResult {
-	if result == nil {
-		return nil
-	}
-
-	display := &handlers.DisplayableAnalysisResult{
-		Transcript:        result.Transcript,
-		Translation:       result.Translation,
-		ShortSummary:      result.ShortSummary,
-		BulletedSummary:   result.BulletedSummary,
-		VisualDescription: result.VisualDescription,
-		MaterialType:      result.MaterialType,
-		ErrorMessage:      result.ErrorMessage,
-		PromptVersion:     result.PromptVersion,
-		AnalysisCreatedAt: result.CreatedAt,
-	}
-
-	// 解析 JSON 欄位
-	if len(result.Topics) > 0 {
-		var topics []string
-		if err := json.Unmarshal(result.Topics, &topics); err == nil {
-			display.ConsolidatedCategories = topics
-		}
-	}
-
-	if len(result.MentionedLocations) > 0 {
-		var locations []string
-		if err := json.Unmarshal(result.MentionedLocations, &locations); err == nil {
-			display.VideoMentionedLocations = locations
-		}
-	}
-
-	if len(result.Keywords) > 0 {
-		var keywords []handlers.KeywordDisplay
-		if err := json.Unmarshal(result.Keywords, &keywords); err == nil {
-			display.Keywords = keywords
-		}
-	}
-
-	if len(result.Bites) > 0 {
-		var bites []handlers.BiteDisplay
-		if err := json.Unmarshal(result.Bites, &bites); err == nil {
-			display.Bites = bites
-		}
-	}
-
-	if len(result.ImportanceScore) > 0 {
-		var importance handlers.ImportanceScoreDisplay
-		if err := json.Unmarshal(result.ImportanceScore, &importance); err == nil {
-			display.ImportanceScore = &importance
-		}
-	}
-
-	if len(result.RelatedNews) > 0 {
-		var relatedNews []string
-		if err := json.Unmarshal(result.RelatedNews, &relatedNews); err == nil {
-			display.RelatedNews = relatedNews
-		}
-	}
-
-	return display
 }
 
 func getFlagForLocation(locationString string) string {
@@ -266,4 +256,17 @@ func getRatingWeight(rating string) int {
 	default:
 		return 0
 	}
+}
+
+func formatFileSize(size int64) string {
+	if size < 1024 {
+		return fmt.Sprintf("%d bytes", size)
+	}
+	if size < 1024*1024 {
+		return fmt.Sprintf("%.2f KB", float64(size)/1024)
+	}
+	if size < 1024*1024*1024 {
+		return fmt.Sprintf("%.2f MB", float64(size)/(1024*1024))
+	}
+	return fmt.Sprintf("%.2f GB", float64(size)/(1024*1024*1024))
 }

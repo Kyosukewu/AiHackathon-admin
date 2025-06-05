@@ -27,11 +27,11 @@ func NewClient(apiKey string, textModelName string, videoModelName string) (*Cli
 		return nil, fmt.Errorf("Gemini API Key 不得為空")
 	}
 	if textModelName == "" {
-		textModelName = "gemini-1.5-flash-latest"
+		textModelName = "gemini-2.5-pro-latest"
 		log.Printf("警告：[Gemini Client] 未提供文本分析模型名稱，使用預設值: %s\n", textModelName)
 	}
 	if videoModelName == "" {
-		videoModelName = "gemini-1.5-flash-latest"
+		videoModelName = "gemini-2.5-pro-latest"
 		log.Printf("警告：[Gemini Client] 未提供影片分析模型名稱，使用預設值: %s\n", videoModelName)
 	}
 

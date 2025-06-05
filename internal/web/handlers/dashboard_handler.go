@@ -67,6 +67,9 @@ type VideoDisplayData struct {
 	FlagEmoji                string
 	VideoURL                 string
 	PromptVersion            string // 新增：文本 Prompt 版本
+	FilePath                 string // 新增：檔案路徑
+	Restrictions             string // 新增：限制條件
+	TranRestrictions         string // 新增：轉檔限制
 }
 
 // KeywordDisplay, BiteDisplay, ImportanceScoreDisplay, DisplayableAnalysisResult (保持不變)
@@ -218,8 +221,11 @@ func (h *DashboardHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			AnalysisResult: nil, PublishedAt: v.PublishedAt, FetchedAt: v.FetchedAt,
 			DurationSecs: v.DurationSecs, ShotlistContent: v.ShotlistContent, ViewLink: v.ViewLink,
 			PrimaryLocation: v.Location.String, FlagEmoji: getFlagForLocationGo(v.Location.String),
-			VideoURL:      fmt.Sprintf("/media/%s", v.NASPath),
-			PromptVersion: v.PromptVersion,
+			VideoURL:         fmt.Sprintf("/media/%s", v.NASPath),
+			PromptVersion:    v.PromptVersion,
+			FilePath:         v.NASPath,
+			Restrictions:     v.Restrictions.String,
+			TranRestrictions: v.TranRestrictions.String,
 		}
 		if v.DurationSecs.Valid {
 			displayItem.FormattedDurationMinutes = v.DurationSecs.Int64 / 60
