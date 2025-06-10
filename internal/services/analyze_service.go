@@ -284,6 +284,21 @@ func (s *AnalyzeService) ExecuteTextAnalysisPipeline() error {
 	var successCount, failCount int
 	for _, videoInfo := range videoFileInfos {
 		log.Printf("資訊：[AnalyzeService-TextPipeline] 處理 TXT 檔案: %s (影片: %s)\n", videoInfo.TextFilePath, videoInfo.VideoFileName)
+
+		// 先檢查資料庫中是否存在對應的 source_id 記錄
+		existingVideo, getErr := s.db.GetVideoBySourceID(videoInfo.SourceName, videoInfo.OriginalID)
+		if getErr != nil {
+			log.Printf("錯誤：[AnalyzeService-TextPipeline] 查詢影片 SourceID %s 狀態失敗: %v. 跳過此文本分析.\n", videoInfo.OriginalID, getErr)
+			failCount++
+			continue
+		}
+
+		// 如果記錄存在且狀態為 completed，則跳過分析
+		if existingVideo != nil && existingVideo.AnalysisStatus == models.StatusCompleted {
+			log.Printf("資訊：[AnalyzeService-TextPipeline] 影片 SourceID %s 狀態為 %s，已完成分析，跳過文本分析。\n", videoInfo.OriginalID, existingVideo.AnalysisStatus)
+			continue
+		}
+
 		baseVideoForFind := &models.Video{SourceName: videoInfo.SourceName, SourceID: videoInfo.OriginalID, NASPath: videoInfo.RelativePath, FetchedAt: videoInfo.ModTime}
 		videoID, findErr := s.db.FindOrCreateVideo(baseVideoForFind)
 		if findErr != nil {
@@ -296,7 +311,7 @@ func (s *AnalyzeService) ExecuteTextAnalysisPipeline() error {
 			failCount++
 			continue
 		}
-		existingVideo, getErr := s.db.GetVideoByID(videoID)
+		existingVideo, getErr = s.db.GetVideoByID(videoID)
 		if getErr != nil {
 			log.Printf("錯誤：[AnalyzeService-TextPipeline] 查詢影片 ID %d 狀態失敗: %v. 跳過此文本分析.\n", videoID, getErr)
 			failCount++

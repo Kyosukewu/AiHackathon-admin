@@ -574,3 +574,34 @@ func (s *MySQLStore) GetVideosPendingContentAnalysis(status models.AnalysisStatu
 	log.Printf("資訊：查詢到 %d 個狀態為 '%s' 的影片。\n", len(videos), status)
 	return videos, nil
 }
+
+// GetVideoBySourceID 根據 source_name 和 source_id 查詢影片
+func (s *MySQLStore) GetVideoBySourceID(sourceName string, sourceID string) (*models.Video, error) {
+	if sourceName == "" || sourceID == "" {
+		return nil, fmt.Errorf("source_name 和 source_id 不得為空")
+	}
+	query := ` SELECT id, source_name, source_id, nas_path, title, fetched_at, published_at, duration_secs, shotlist_content, view_link, subjects, location, analysis_status, analyzed_at, source_metadata FROM videos WHERE source_name = ? AND source_id = ?;`
+	row := s.db.QueryRow(query, sourceName, sourceID)
+	var v models.Video
+	var sourceMetadataBytes, subjectsBytes []byte
+	var shotlistContentSQL, locationSQL, viewLinkSQL sql.NullString
+	err := row.Scan(&v.ID, &v.SourceName, &v.SourceID, &v.NASPath, &v.Title, &v.FetchedAt, &v.PublishedAt, &v.DurationSecs, &shotlistContentSQL, &viewLinkSQL, &subjectsBytes, &locationSQL, &v.AnalysisStatus, &v.AnalyzedAt, &sourceMetadataBytes)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("查詢影片 (Source: %s, ID: %s) 失敗: %w", sourceName, sourceID, err)
+	}
+	if sourceMetadataBytes != nil {
+		v.SourceMetadata = copyBytes(sourceMetadataBytes)
+	}
+	if subjectsBytes != nil {
+		v.Subjects = copyBytes(subjectsBytes)
+	}
+	v.ShotlistContent = models.JsonNullString{NullString: shotlistContentSQL}
+	v.Location = locationSQL
+	if viewLinkSQL.Valid {
+		v.ViewLink = viewLinkSQL
+	}
+	return &v, nil
+}

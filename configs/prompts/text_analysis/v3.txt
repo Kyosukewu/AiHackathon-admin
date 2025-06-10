@@ -10,7 +10,7 @@
   "location": "主要的繁體中文地點",
   "restrictions": "SHOTLIST 底下 RESTRICTIONS 中的原始內容",
   "tran_restrictions": "restrictions內容的完整繁體中文翻譯",
-  "shotlist_content": "完整的繁體中文 SHOTLIST 內容，保留原始換行和格式。"
+  "shotlist_content": "完整的繁體中文 SHOTLIST 內容，使用 \\n 表示換行，避免使用其他特殊字元。"
 }
 嚴格遵守以下規則：
 - 繁體中文
@@ -22,3 +22,9 @@
 - 提到呎、碼，換算為公尺，寫在後方的（）裡面
 - 提到風速，換算蒲氏風力級數，寫在後方的（）裡面
 - 回答不需重複問題
+- JSON 格式要求：
+  1. 所有字串必須使用雙引號
+  2. 換行符號必須使用 \\n
+  3. 避免使用其他特殊字元
+  4. 確保 JSON 格式的完整性和有效性
+  5. shotlist_content 中的換行必須使用 \\n，不要使用其他換行符號

@@ -24,6 +24,7 @@ type DBStore interface {
 	GetPendingVideos(limit int) ([]models.Video, error)
 	GetVideoByID(videoID int64) (*models.Video, error)
 	GetVideosPendingContentAnalysis(status models.AnalysisStatus, limit int) ([]models.Video, error)
+	GetVideoBySourceID(sourceName string, sourceID string) (*models.Video, error)
 }
 
 // DashboardPageData 更新：加入篩選和排序的當前值，以便在範本中設定表單預設值
@@ -194,7 +195,7 @@ func (h *DashboardHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 分頁參數 (暫時固定值)
-	limit := 20 // 暫時固定每頁數量
+	limit := 50 // 暫時固定每頁數量
 	offset := 0
 
 	videos, analysisResults, err := h.db.GetAllVideosWithAnalysis(limit, offset, searchTerm, sortBy, sortOrder)

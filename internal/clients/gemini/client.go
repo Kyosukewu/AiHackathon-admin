@@ -27,11 +27,11 @@ func NewClient(apiKey string, textModelName string, videoModelName string) (*Cli
 		return nil, fmt.Errorf("Gemini API Key 不得為空")
 	}
 	if textModelName == "" {
-		textModelName = "gemini-2.5-pro-latest"
+		textModelName = "gemini-2.5-flash-latest"
 		log.Printf("警告：[Gemini Client] 未提供文本分析模型名稱，使用預設值: %s\n", textModelName)
 	}
 	if videoModelName == "" {
-		videoModelName = "gemini-2.5-pro-latest"
+		videoModelName = "gemini-2.5-flash-latest"
 		log.Printf("警告：[Gemini Client] 未提供影片分析模型名稱，使用預設值: %s\n", videoModelName)
 	}
 
@@ -101,14 +101,58 @@ func cleanJSONString(rawResponse string) string {
 		potentialJSON = strings.ToValidUTF8(potentialJSON, "")
 	}
 
-	// 移除控制字元
+	// 移除控制字元並處理換行符號
 	var sb strings.Builder
-	for _, r := range potentialJSON {
-		if (r >= 0 && r < 9) || (r > 10 && r < 13) || (r > 13 && r < 32) || r == 127 {
+	inString := false
+	escapeNext := false
+	for i := 0; i < len(potentialJSON); i++ {
+		c := potentialJSON[i]
+
+		// 處理字串內的換行符號
+		if inString && !escapeNext {
+			if c == '\\' {
+				escapeNext = true
+				sb.WriteByte(c)
+				continue
+			}
+			if c == '"' {
+				inString = false
+			}
+			// 在字串內，保留所有字元
+			sb.WriteByte(c)
 			continue
 		}
-		sb.WriteRune(r)
+
+		// 處理字串開始
+		if c == '"' && !escapeNext {
+			inString = true
+			sb.WriteByte(c)
+			continue
+		}
+
+		// 處理換行符號
+		if c == '\n' || c == '\r' {
+			if !inString {
+				// 在字串外，將換行符號轉換為空格
+				sb.WriteByte(' ')
+			} else {
+				// 在字串內，保留換行符號
+				sb.WriteByte(c)
+			}
+			continue
+		}
+
+		// 處理其他控制字元
+		if (c >= 0 && c < 9) || (c > 10 && c < 13) || (c > 13 && c < 32) || c == 127 {
+			if !inString {
+				continue
+			}
+		}
+
+		sb.WriteByte(c)
+		escapeNext = false
 	}
+
 	finalCleaned := sb.String()
 	finalCleaned = strings.TrimPrefix(finalCleaned, "\uFEFF")
 
@@ -138,7 +182,6 @@ func cleanJSONString(rawResponse string) string {
 // AnalyzeText 向 Gemini API 發送純文本內容和提示以進行分析，期望回傳 JSON 字串
 func (c *Client) AnalyzeText(ctx context.Context, textContent string, prompt string) (string, error) {
 	log.Printf("資訊：[Gemini Client] AnalyzeText - 開始分析文本內容 (長度: %d 字元)\n", len(textContent))
-	log.Printf("資訊：[Gemini Client] AnalyzeText - 使用文本分析 Prompt (前100字元): %s...\n", firstNChars(prompt, 100))
 	if strings.TrimSpace(textContent) == "" {
 		return "", fmt.Errorf("要分析的文本內容不得為空")
 	}

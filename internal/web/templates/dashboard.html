@@ -85,21 +85,6 @@
             background-color: #218838;
         }
 
-        .main-content {
-            flex-grow: 1;
-            padding: 25px 30px;
-            overflow-y: auto;
-        }
-
-        .main-content>h1 {
-            color: #1a202c;
-            border-bottom: 3px solid #007bff;
-            padding-bottom: 15px;
-            margin-top: 0;
-            margin-bottom: 30px;
-            font-size: 2.2em;
-        }
-
         .controls {
             margin-bottom: 30px;
             padding: 18px;
@@ -188,12 +173,42 @@
         }
 
         .video-card {
-            background-color: #fff;
-            border: 1px solid #e0e0e0;
+            background-color: #ffffff;
             border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-            transition: box-shadow 0.3s ease-in-out;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
             overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .video-card.importance-s {
+            background-color: #f3e5f5;
+            border-left: 5px solid #9c27b0;
+        }
+
+        .video-card.importance-a {
+            background-color: #d4edda;
+            border-left: 5px solid #28a745;
+        }
+
+        .video-card.importance-b {
+            background-color: #fff3cd;
+            border-left: 5px solid #ffc107;
+        }
+
+        .video-card.importance-c {
+            background-color: #ffe5d0;
+            border-left: 5px solid #fd7e14;
+        }
+
+        .video-card.importance-n {
+            background-color: #f8d7da;
+            border-left: 5px solid #dc3545;
+        }
+
+        .video-card.importance-unknown {
+            background-color: #e2e3e5;
+            border-left: 5px solid #6c757d;
         }
 
         .video-card:hover {
@@ -202,12 +217,13 @@
 
         .card-header {
             padding: 15px 20px;
+            background-color: #ffffff;
+            border-bottom: 1px solid #e0e0e0;
             cursor: pointer;
-            background-color: #f8f9fa;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            /* border-bottom: 1px solid #e0e0e0; /* 移到 .card-identity-meta */
+            transition: background-color 0.3s ease;
         }
 
         .card-title-section {
@@ -221,17 +237,44 @@
             font-size: 1.2em;
             font-weight: bold;
             color: #fff;
-            background-color: #dc3545;
+            background-color: #6c757d;
             border-radius: 5px;
             padding: 5px 10px;
-            /* 增加 padding 使其更像徽章 */
             margin-right: 15px;
             line-height: 1;
             flex-shrink: 0;
+            min-width: 32px;
+            text-align: center;
+        }
+
+        .card-header .rating-badge.rating-s {
+            background-color: #9c27b0 !important; /* 紫色 */
+            color: #fff !important;
+        }
+
+        .card-header .rating-badge.rating-a {
+            background-color: #28a745 !important; /* 綠色 */
+            color: #fff !important;
+        }
+
+        .card-header .rating-badge.rating-b {
+            background-color: #ffc107 !important; /* 黃色 */
+            color: #000 !important;
+        }
+
+        .card-header .rating-badge.rating-c {
+            background-color: #fd7e14 !important; /* 橙色 */
+            color: #fff !important;
+        }
+
+        .card-header .rating-badge.rating-n {
+            background-color: #dc3545 !important; /* 紅色 */
+            color: #fff !important;
         }
 
         .card-header .rating-badge.no-data {
-            background-color: #6c757d;
+            background-color: #6c757d !important; /* 灰色 */
+            color: #fff !important;
             font-size: 1em;
             padding: 5px 8px;
         }
@@ -266,17 +309,12 @@
         }
 
         .card-identity-meta {
-            /* 新增：卡片標題下方元數據區 */
             padding: 8px 20px 10px 20px;
-            /* 微調 padding */
-            background-color: #f8f9fa;
-            /* 與 header 背景色一致 */
+            background-color: #ffffff;
             border-bottom: 1px solid #e0e0e0;
             display: flex;
             flex-wrap: wrap;
-            /* 允許換行 */
             gap: 8px 20px;
-            /* row-gap column-gap, 減小行間距 */
             font-size: 0.85em;
             color: #495057;
         }
@@ -569,6 +607,22 @@
         .info-value {
             margin-left: 10px;
         }
+
+        .main-content {
+            flex-grow: 1;
+            padding: 30px;
+            overflow-y: auto;
+            background-color: #f0f2f5;
+        }
+
+        .main-content h1 {
+            margin: 0 0 25px 0;
+            color: #2c3e50;
+            font-size: 2.2em;
+            font-weight: 600;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e0e0e0;
+        }
     </style>
 </head>
 
@@ -615,18 +669,23 @@
             <div class="video-card-list">
                 {{if .Videos}}
                     {{range $index, $video := .Videos}}
-                    <div class="video-card">
+                    <div class="video-card {{if and $video.AnalysisResult $video.AnalysisResult.ImportanceScore $video.AnalysisResult.ImportanceScore.OverallRating}}
+                        {{if eq $video.AnalysisResult.ImportanceScore.OverallRating "S"}}importance-s
+                        {{else if eq $video.AnalysisResult.ImportanceScore.OverallRating "A"}}importance-a
+                        {{else if eq $video.AnalysisResult.ImportanceScore.OverallRating "B"}}importance-b
+                        {{else if eq $video.AnalysisResult.ImportanceScore.OverallRating "C"}}importance-c
+                        {{else if eq $video.AnalysisResult.ImportanceScore.OverallRating "N"}}importance-n
+                        {{else}}importance-unknown{{end}}
+                    {{else}}importance-unknown{{end}}">
                         <div class="card-header" onclick="toggleDetails('details-{{$index}}', this)">
                             <div class="card-title-section">
-                                {{/* 評分徽章移到標題前 */}}
-                                {{if $video.AnalysisResult}}{{if $video.AnalysisResult.ImportanceScore}}
-                                    <span class="rating-badge" title="重要性評級: {{$video.AnalysisResult.ImportanceScore.OverallRating | html}}">
-                                        {{$video.AnalysisResult.ImportanceScore.OverallRating | html}}
+                                {{if and $video.AnalysisResult $video.AnalysisResult.ImportanceScore $video.AnalysisResult.ImportanceScore.OverallRating}}
+                                    {{$rating := $video.AnalysisResult.ImportanceScore.OverallRating}}
+                                    <span class="rating-badge {{if eq $rating "S"}}rating-s{{else if eq $rating "A"}}rating-a{{else if eq $rating "B"}}rating-b{{else if eq $rating "C"}}rating-c{{else if eq $rating "N"}}rating-n{{end}}" title="重要性評級: {{$rating | html}}">
+                                        {{$rating | html}}
                                     </span>
                                 {{else}}
                                     <span class="rating-badge no-data" title="重要性評分未分析">?</span>
-                                {{end}}{{else}}
-                                     <span class="rating-badge no-data" title="影片尚未進行內容分析">?</span>
                                 {{end}}
                                 <h2>{{if $video.Title}}{{$video.Title | html}}{{else}}<span class="no-data">(無標題)</span>{{end}}</h2>
                                 {{if $video.FlagEmoji}}
@@ -711,7 +770,7 @@
                             <p class="prompt-version-info"><span class="icon icon-prompt label">文本 Prompt 版本:</span> {{$video.PromptVersion | html}}</p>
                         </div>
 
-                        <div id="details-{{$index}}" class="card-details">
+                        <div id="details-{{$index}}" class="card-details" style="display: none;">
                            {{/* 移除欄位標題前的編號 */}}
                            <h3><span class="icon icon-shotlist"></span>畫面 (SHOTLIST - TXT)</h3>
                            <pre>{{if and $video.ShotlistContent.Valid $video.ShotlistContent.String}}{{$video.ShotlistContent.String | html}}{{else}}<span class="no-data">無</span>{{end}}</pre>
@@ -879,14 +938,15 @@
 
         // 展開/收合卡片詳情
         function toggleDetails(detailsId, headerElement) {
-            const details = document.getElementById(detailsId);
+            const detailsElement = document.getElementById(detailsId);
             const expandIndicator = headerElement.querySelector('.expand-indicator');
-            if (details.classList.contains('expanded')) {
-                details.classList.remove('expanded');
-                expandIndicator.textContent = '▼ 展開';
+            
+            if (detailsElement.style.display === 'none' || !detailsElement.style.display) {
+                detailsElement.style.display = 'block';
+                expandIndicator.textContent = '▲ 收起';
             } else {
-                details.classList.add('expanded');
-                expandIndicator.textContent = '▲ 收合';
+                detailsElement.style.display = 'none';
+                expandIndicator.textContent = '▼ 展開';
             }
         }
     </script>
