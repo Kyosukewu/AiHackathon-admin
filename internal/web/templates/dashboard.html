@@ -293,6 +293,27 @@
             line-height: 1.2;
         }
 
+        .card-short-summary {
+            padding: 12px 20px;
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .card-short-summary .summary-title {
+            font-weight: 600;
+            color: #495057;
+            margin: 0 0 5px 0;
+            font-size: 0.95em;
+        }
+
+        .card-short-summary .summary-content {
+            margin: 0;
+            color: #212529;
+            font-size: 0.9em;
+            line-height: 1.5;
+            word-break: break-word;
+        }
+
         .flag-icon {
             font-size: 1.6em;
             margin-left: 0;
@@ -694,6 +715,12 @@
                             </div>
                             <span class="expand-indicator">▼ 展開</span>
                         </div>
+
+                        {{if $video.AnalysisResult}}
+                        <div class="card-short-summary">
+                            <p class="summary-content">{{if and .AnalysisResult.ShortSummary .AnalysisResult.ShortSummary.Valid .AnalysisResult.ShortSummary.String}}{{.AnalysisResult.ShortSummary.String | html}}{{else}}<span class="no-data">無</span>{{end}}</p>
+                        </div>
+                        {{end}}
 
                         <div class="card-identity-meta">
                             <p><span class="icon icon-id label">素材編號:</span> {{$video.CombinedSourceID | html}} (DB ID: {{$video.VideoID}})</p>
