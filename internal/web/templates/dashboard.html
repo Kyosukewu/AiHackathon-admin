@@ -45,6 +45,56 @@
             padding-bottom: 12px;
         }
 
+        .control-panel {
+            margin-bottom: 30px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+
+        .control-btn {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 10px;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.95em;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .control-btn:last-child {
+            margin-bottom: 0;
+        }
+
+        .control-btn.primary {
+            background-color: #007bff;
+            color: white;
+        }
+
+        .control-btn.primary:hover {
+            background-color: #0056b3;
+            transform: translateY(-1px);
+        }
+
+        .control-btn.secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+
+        .control-btn.secondary:hover {
+            background-color: #5a6268;
+            transform: translateY(-1px);
+        }
+
+        .control-btn:disabled {
+            background-color: #ced4da;
+            cursor: not-allowed;
+            transform: none;
+        }
+
         .filter-group {
             margin-bottom: 25px;
         }
@@ -83,6 +133,16 @@
 
         .filter-group button:hover {
             background-color: #218838;
+        }
+
+        .filter-group button.reset-btn {
+            background-color: #6c757d;
+            margin-top: 10px;
+            width: 100%;
+        }
+
+        .filter-group button.reset-btn:hover {
+            background-color: #5a6268;
         }
 
         .controls {
@@ -143,6 +203,7 @@
             border-radius: 4px;
             font-size: 0.9em;
             display: none;
+            margin-bottom: 20px;
         }
 
         .status-success {
@@ -277,6 +338,21 @@
             color: #fff !important;
             font-size: 1em;
             padding: 5px 8px;
+        }
+
+        .card-header .source-badge {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #fff;
+            background-color: #17a2b8;
+            border-radius: 5px;
+            padding: 5px 10px;
+            margin-right: 15px;
+            line-height: 1;
+            flex-shrink: 0;
+            min-width: 32px;
+            text-align: center;
+            text-transform: uppercase;
         }
 
         .card-header h2 {
@@ -650,6 +726,8 @@
 <body>
     <div class="page-container">
         <aside class="sidebar">
+            <div id="statusMessageContainer"></div>
+
             <h3>篩選與排序</h3>
             <form id="filterSortForm">
                 <div class="filter-group">
@@ -673,20 +751,20 @@
                     </select>
                 </div>
                 <div class="filter-group">
-                    <button type="submit">套用</button>
+                    <button type="button" id="resetFilterBtn" class="reset-btn">重置篩選</button>
                 </div>
             </form>
+
+            <h3>控制面板</h3>
+            <div class="control-panel">
+                <button id="triggerTextAnalysisBtn" class="control-btn primary">手動觸發文本元數據分析</button>
+                <button id="triggerVideoAnalysisBtn" class="control-btn secondary">手動觸發影片內容分析</button>
+                <button id="exportExcelBtn" class="control-btn secondary">匯出Excel</button>
+            </div>
         </aside>
 
         <main class="main-content">
-            <h1>影片分析儀表板</h1>
-            <div class="controls">
-                <button id="triggerTextAnalysisBtn">手動觸發文本元數據分析</button>
-                <button id="triggerVideoAnalysisBtn" class="secondary">手動觸發影片內容分析</button>
-                <button id="exportExcelBtn" class="secondary">匯出Excel</button>
-                <div id="statusMessageContainer"></div>
-            </div>
-
+            <h1>外電獵殺者 - 影片分析儀表板</h1>
             <div class="video-card-list">
                 {{if .Videos}}
                     {{range $index, $video := .Videos}}
@@ -707,6 +785,9 @@
                                     </span>
                                 {{else}}
                                     <span class="rating-badge no-data" title="重要性評分未分析">?</span>
+                                {{end}}
+                                {{if $video.SourceName}}
+                                    <span class="source-badge" title="來源: {{$video.SourceName | html}}">{{$video.SourceName | html}}</span>
                                 {{end}}
                                 <h2>{{if $video.Title}}{{$video.Title | html}}{{else}}<span class="no-data">(無標題)</span>{{end}}</h2>
                                 {{if $video.FlagEmoji}}
@@ -865,6 +946,40 @@
         const exportExcelBtn = document.getElementById('exportExcelBtn');
         const statusMessageContainer = document.getElementById('statusMessageContainer');
         const filterSortForm = document.getElementById('filterSortForm');
+        const keywordSearchInput = document.getElementById('keywordSearchInput');
+        const sortBySelect = document.getElementById('sortBySelect');
+        const sortOrderSelect = document.getElementById('sortOrderSelect');
+        const videoCardList = document.querySelector('.video-card-list');
+
+        // 儲存所有影片卡片的原始順序
+        let originalVideoCards = Array.from(videoCardList.querySelectorAll('.video-card'));
+
+        function resetToOriginal() {
+            // 重置搜尋和排序選項
+            keywordSearchInput.value = '';
+            sortBySelect.value = 'importance';
+            sortOrderSelect.value = 'desc';
+
+            // 清空並重新添加原始卡片
+            videoCardList.innerHTML = '';
+            originalVideoCards.forEach(card => {
+                videoCardList.appendChild(card);
+            });
+
+            // 檢查是否已經有重置提示訊息
+            const existingMessages = statusMessageContainer.querySelectorAll('.status-message');
+            const hasResetMessage = Array.from(existingMessages).some(msg => 
+                msg.textContent === '已重置所有篩選和排序'
+            );
+
+            // 只有在沒有重置提示訊息時才顯示
+            if (!hasResetMessage) {
+                displayStatusMessage('已重置所有篩選和排序', 'info');
+            }
+        }
+
+        // 綁定重置按鈕事件
+        document.getElementById('resetFilterBtn').addEventListener('click', resetToOriginal);
 
         function displayStatusMessage(message, type) {
             const messageDiv = document.createElement('div');
@@ -875,6 +990,93 @@
                 messageDiv.remove();
             }, 7000);
         }
+
+        function filterAndSortVideos() {
+            const searchTerm = keywordSearchInput.value.toLowerCase();
+            const sortBy = sortBySelect.value;
+            const sortOrder = sortOrderSelect.value;
+
+            // 使用原始卡片列表進行過濾
+            const videoCards = Array.from(originalVideoCards);
+            
+            // 過濾影片
+            const filteredCards = videoCards.filter(card => {
+                const title = card.querySelector('h2').textContent.toLowerCase();
+                const sourceId = card.querySelector('.card-identity-meta p:first-child').textContent.toLowerCase();
+                const summary = card.querySelector('.summary-content')?.textContent.toLowerCase() || '';
+                const keywords = Array.from(card.querySelectorAll('.importance-section li')).map(li => li.textContent.toLowerCase());
+                
+                return title.includes(searchTerm) || 
+                       sourceId.includes(searchTerm) || 
+                       summary.includes(searchTerm) || 
+                       keywords.some(keyword => keyword.includes(searchTerm));
+            });
+
+            // 排序影片
+            filteredCards.sort((a, b) => {
+                let valueA, valueB;
+
+                switch(sortBy) {
+                    case 'importance':
+                        const ratingA = a.querySelector('.rating-badge')?.textContent.trim() || 'Z';
+                        const ratingB = b.querySelector('.rating-badge')?.textContent.trim() || 'Z';
+                        valueA = ratingA;
+                        valueB = ratingB;
+                        break;
+                    case 'published_at':
+                        const dateA = a.querySelector('.card-identity-meta p:nth-child(2)')?.textContent || '';
+                        const dateB = b.querySelector('.card-identity-meta p:nth-child(2)')?.textContent || '';
+                        valueA = dateA;
+                        valueB = dateB;
+                        break;
+                    case 'source_id':
+                        const idA = a.querySelector('.card-identity-meta p:first-child')?.textContent || '';
+                        const idB = b.querySelector('.card-identity-meta p:first-child')?.textContent || '';
+                        valueA = idA;
+                        valueB = idB;
+                        break;
+                    case 'fetched_at':
+                        // 由於沒有擷取時間的顯示，暫時使用發布時間
+                        const fetchDateA = a.querySelector('.card-identity-meta p:nth-child(2)')?.textContent || '';
+                        const fetchDateB = b.querySelector('.card-identity-meta p:nth-child(2)')?.textContent || '';
+                        valueA = fetchDateA;
+                        valueB = fetchDateB;
+                        break;
+                    default:
+                        return 0;
+                }
+
+                if (sortOrder === 'asc') {
+                    return valueA.localeCompare(valueB);
+                } else {
+                    return valueB.localeCompare(valueA);
+                }
+            });
+
+            // 清空並重新添加排序後的卡片
+            videoCardList.innerHTML = '';
+            if (filteredCards.length === 0) {
+                const noResultsMessage = document.createElement('p');
+                noResultsMessage.className = 'no-data';
+                noResultsMessage.textContent = '沒有符合搜尋條件的影片。';
+                videoCardList.appendChild(noResultsMessage);
+            } else {
+                filteredCards.forEach(card => {
+                    videoCardList.appendChild(card);
+                });
+            }
+        }
+
+        // 綁定事件監聽器
+        keywordSearchInput.addEventListener('input', filterAndSortVideos);
+        sortBySelect.addEventListener('change', filterAndSortVideos);
+        sortOrderSelect.addEventListener('change', filterAndSortVideos);
+
+        // 修改表單提交處理
+        filterSortForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            filterAndSortVideos();
+        });
 
         function triggerAnalysis(buttonElement, endpoint, buttonText) {
             console.log(`按鈕 '${buttonText}' 被點擊！`);
@@ -954,14 +1156,6 @@
         textAnalysisBtn.addEventListener('click', () => triggerAnalysis(textAnalysisBtn, '/manual-text-analyze', '文本元數據分析'));
         videoAnalysisBtn.addEventListener('click', () => triggerAnalysis(videoAnalysisBtn, '/manual-video-analyze', '影片內容分析'));
         exportExcelBtn.addEventListener('click', exportToExcel);
-
-        // 篩選和排序表單提交處理
-        filterSortForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            const formData = new FormData(this);
-            const params = new URLSearchParams(formData);
-            window.location.href = `/dashboard?${params.toString()}`;
-        });
 
         // 展開/收合卡片詳情
         function toggleDetails(detailsId, headerElement) {
